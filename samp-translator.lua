@@ -2,7 +2,7 @@ script_version_number(2)
 script_version("release-1.1")
 script_authors("moreveal")
 script_description("SAMP Translator")
-script_dependencies("sampfuncs, sampev, mimgui, lfs, copas/effil/requests")
+script_dependencies("sampfuncs, sampev, mimgui, lfs, effil/requests")
 script_properties("work-in-pause")
 
 require 'lib.sampfuncs'
@@ -280,7 +280,9 @@ function main()
                 for s,t in pairs(v.messages) do
                     reqtime = os.clock()
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") then -- if need to translate
-                        if t[2]:find("\t") then t[2] = t[2]:gsub("\t", "\\t") end -- to save tabs
+                        math.randomseed(os.time())
+                        local tab_replace = "0x"..math.random(10,999) -- to escaping the tab is not the best solution, cause it can also be translated
+                        if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
                         local headers = {
                             ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
                             ['Content-Type'] = 'application/x-www-form-urlencoded',
@@ -313,7 +315,7 @@ function main()
                                     if isjson and response.status_code == 200 then
                                         if array.text[1] then
                                             local result_text = array.text[1]
-                                            if result_text:find("\\t") then result_text = result_text:gsub("\\t", "\t") end
+                                            if result_text:find(tab_replace) then result_text = result_text:gsub(tab_replace, "\t") end
                                             temp_str = u8:decode(result_text)
                                             if s == #v.messages then finish = true end
                                         end
@@ -341,7 +343,7 @@ function main()
                                 if not reqerror then 
                                     result[r] = temp_str
                                 else
-                                    if t[2]:find("\\t") then t[2] = t[2]:gsub("\\t", "\t") end -- return tabs
+                                    if t[2]:find(tab_replace) then t[2] = t[2]:gsub(tab_replace, "\t") end -- return tabs
                                     result = {t[2]}
                                 end
                             end
