@@ -1,5 +1,5 @@
-script_version_number(2)
-script_version("release-1.1")
+script_version_number(3)
+script_version("release-1.2")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, sampev, mimgui, lfs, effil/requests")
@@ -17,6 +17,7 @@ local wm = require 'windows.message'
 -- additionaly
 local sampev = require 'samp.events'
 local imgui = require 'mimgui'
+local requests = require 'requests'
 local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 -- variables
 local threads, textlabels, chatbubbles = {}, {}, {}
@@ -24,6 +25,7 @@ local phrases = {}
 local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro"}
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
+local update_url = "https://github.com/moreveal/samp-translator/raw/main/samp-translator.lua"
 ------------
 
 if not doesDirectoryExist(main_dir.."languages") then createDirectory(main_dir.."languages") end
@@ -40,6 +42,7 @@ local defaultIni = {
     },
     options = {
         scriptlang = "English", -- script language
+        autoupdate = true, -- status of autoupdate
         t_chat = true, -- chat translation
         t_dialogs = true, -- dialogs translation
         t_chatbubbles = true, -- chatbubbles translation
@@ -71,6 +74,7 @@ local cb_chat = new.bool(inifile.options.t_chat)
 local cb_dialogs = new.bool(inifile.options.t_dialogs)
 local cb_chatbubbles = new.bool(inifile.options.t_chatbubbles)
 local cb_textlabels = new.bool(inifile.options.t_textlabels)
+local cb_autoupdate = new.bool(inifile.options.autoupdate)
 
 local combo_scriptlangs_index = new.int(0)
 local combo_scriptlangs_text = {}
@@ -192,6 +196,11 @@ imguiFrame[1] = imgui.OnFrame(
             inifile.options.t_textlabels = not inifile.options.t_textlabels
             inicfg.save(inifile, cpath)
         end
+        imgui.Separator()
+        if imgui.Checkbox(u8(phrases.AU_STATUS), cb_autoupdate) then
+            inifile.options.autoupdate = not inifile.options.autoupdate
+            inicfg.save(inifile, cpath)
+        end
         imgui.PopItemWidth()
         imgui.End()
     end
@@ -212,6 +221,31 @@ function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
     sampRegisterChatCommand("translate", function() renderMainWindow[0] = not renderMainWindow[0] end)
+
+    -- auto-update
+    if inifile.options.autoupdate then
+        local function updateScript()
+            downloadUrlToFile(update_url, thisScript().path, function(id, status)
+                if status == 6 then
+                    sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
+                    thisScript():reload()
+                end
+            end)
+        end
+        downloadUrlToFile(update_url, main_dir.."temp.lua", function(id, status)
+            if status == 6 then
+                lua_thread.create(function()
+                    wait(100)
+                    local f = io.open(main_dir.."temp.lua", "r")
+                    local content = f:read("*a")
+                    f:close()
+                    wait(100)
+                    os.remove(main_dir.."temp.lua")
+                    if tonumber(content:match("script_version_number%((%d+)%)")) > thisScript().version_num then updateScript() end
+                end)
+            end
+        end)
+    end
 
     lua_thread.create(function()
         while true do
@@ -278,10 +312,22 @@ function main()
             for k,v in ipairs(threads) do
                 local finish = false
                 for s,t in pairs(v.messages) do
-                    reqtime = os.clock()
+                    except = {}
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") then -- if need to translate
-                        math.randomseed(os.time())
-                        local tab_replace = "0x"..math.random(10,999) -- to escaping the tab is not the best solution, cause it can also be translated
+                        for word in t[2]:gmatch("[^%s]+") do
+                            if word:find("^/") then
+                                local cmd = word:match("/(.+)")
+                                if cmd then
+                                    math.randomseed(os.time())
+                                    local rand = string.char(math.random(65, 90)):lower()
+                                    local fixcmd = "/"..rand..cmd..rand
+                                    print(word, "/"..rand..cmd..rand)
+                                    t[2] = t[2]:gsub(word, fixcmd) -- dont translate a commands
+                                    table.insert(except, {old = word, new = fixcmd})
+                                end
+                            end
+                        end
+                        local tab_replace = "0x"..math.random(10,9999) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
                         local headers = {
                             ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
@@ -309,13 +355,14 @@ function main()
                             if result[r] then
                                 data = "text="..url_encode(u8(l)).."&options=4"
                                 local temp_str = false
-                                asyncHttpRequest('POST', 'https://translate.yandex.net/api/v1/tr.json/translate?id=d4d6d78b.627ff9fb.55d49441.74722d74657874-0-0&srv=tr-text&lang='..inifile.lang.source..'-'..inifile.lang.target..'&reason=auto&format=text&yu=1634153241652478613&yum=1642274859919564853', {data = data, headers = headers},
+                                asyncHttpRequest('POST', 'https://translate.yandex.net/api/v1/tr.json/translate?id=d4d6d78b.627ff9fb.55d49441.74722d74657874-0-0&srv=tr-text&lang='..(t[3] and inifile.lang.target or inifile.lang.source)..'-'..(t[3] and inifile.lang.source or inifile.lang.target)..'&reason=auto&format=text&yu=1634153241652478613&yum=1642274859919564853', {data = data, headers = headers},
                                 function(response)
                                     local isjson, array = pcall(decodeJson, response.text)
                                     if isjson and response.status_code == 200 then
                                         if array.text[1] then
                                             local result_text = array.text[1]
                                             if result_text:find(tab_replace) then result_text = result_text:gsub(tab_replace, "\t") end
+                                            for _,v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
                                             temp_str = u8:decode(result_text)
                                             if s == #v.messages then finish = true end
                                         end
@@ -344,6 +391,7 @@ function main()
                                     result[r] = temp_str
                                 else
                                     if t[2]:find(tab_replace) then t[2] = t[2]:gsub(tab_replace, "\t") end -- return tabs
+                                    for _,v in ipairs(except) do t[2] = t[2]:gsub(v.new, v.old) end -- return commands
                                     result = {t[2]}
                                 end
                             end
@@ -439,7 +487,7 @@ function sampev.onSendChat(text)
             table.insert(threads, {
                 style = 5,
                 messages = {
-                    {true, text}
+                    {true, text, "out"}
                 }
             })
             return false
@@ -457,7 +505,7 @@ function sampev.onSendCommand(cmd)
                 style = 6,
                 messages = {
                     {false, command},
-                    {true, text}
+                    {true, text, "out"}
                 }
             })
             return false
@@ -471,7 +519,6 @@ end
 local effil = require 'effil'
 function asyncHttpRequest(method, url, args, resolve, reject)
    local request_thread = effil.thread(function (method, url, args)
-      local requests = require 'requests'
       local result, response = pcall(requests.request, method, url, args)
       if result then
          response.json, response.xml = nil, nil
