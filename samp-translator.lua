@@ -222,24 +222,22 @@ function main()
 
     -- auto-update
     if inifile.options.autoupdate then
-        local function updateScript()
-            downloadUrlToFile(update_url, thisScript().path, function(id, status)
-                if status == 6 then
-                    sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
-                    thisScript():reload()
-                end
-            end)
-        end
-        downloadUrlToFile(update_url, main_dir.."temp.lua", function(id, status)
+        local tempname = os.tmpname()
+        downloadUrlToFile(update_url, tempname, function(id, status)
             if status == 6 then
                 lua_thread.create(function()
                     wait(100)
-                    local f = io.open(main_dir.."temp.lua", "r")
+                    local f = io.open(tempname, "r")
                     local content = f:read("*a")
                     f:close()
+                    if tonumber(content:match("script_version_number%((%d+)%)")) > thisScript().version_num then
+                        f = io.open(thisScript().path, "w+")
+                        f:write(content)
+                        f:close()
+                        sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
+                    end
                     wait(100)
-                    os.remove(main_dir.."temp.lua")
-                    if tonumber(content:match("script_version_number%((%d+)%)")) > thisScript().version_num then updateScript() end
+                    os.remove(tempname)
                 end)
             end
         end)
@@ -325,7 +323,7 @@ function main()
                                 end
                             end
                         end
-                        local tab_replace = "0x"..math.random(10,9999) -- to escaping the tab is not the best solution, cause it can also be translated
+                        local tab_replace = "0x"..math.random(10,999) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
                         local headers = {
                             ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
