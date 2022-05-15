@@ -245,7 +245,7 @@ function main()
                 end
 
                 for k,v in ipairs(chatbubbles) do
-                    if os.time() - v.duration < 0 then
+                    if os.clock() - v.duration < 0 then
                         local x, y, z = getCharCoordinates(PLAYER_PED)
                         local r, handle = sampGetCharHandleBySampPlayerId(v.playerid)
                         if r then
@@ -257,7 +257,7 @@ function main()
                                         {false, v.playerid},
                                         {false, v.color},
                                         {false, v.distance},
-                                        {false, (v.duration - os.time()) * 1000},
+                                        {false, (v.duration - os.clock()) * 1000},
                                         {true, v.message}
                                     }
                                 })
@@ -278,7 +278,7 @@ function main()
             for k,v in ipairs(threads) do
                 local finish = false
                 for s,t in pairs(v.messages) do
-                    reqtime = os.time()
+                    reqtime = os.clock()
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") then -- if need to translate
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", "\\t") end -- to save tabs
                         local headers = {
@@ -304,44 +304,56 @@ function main()
                         end
                         local result = split_by_lines(t[2], 650)
                         for r,l in ipairs(result) do
-                            data = "text="..url_encode(u8(l)).."&options=4"
-                            local temp_str = false
-                            asyncHttpRequest('POST', 'https://translate.yandex.net/api/v1/tr.json/translate?id=d4d6d78b.627ff9fb.55d49441.74722d74657874-0-0&srv=tr-text&lang='..inifile.lang.source..'-'..inifile.lang.target..'&reason=auto&format=text&yu=1634153241652478613&yum=1642274859919564853', {data = data, headers = headers},
-                            function(response)
-                                if response.status_code == 200 then
-                                    local array = decodeJson(response.text)
-                                    if array.text[1] then
-                                        local result_text = array.text[1]
-                                        if result_text:find("\\t") then result_text = result_text:gsub("\\t", "\t") end
-                                        temp_str = u8:decode(result_text)
-                                        if s == #v.messages then finish = true end
+                            if result[r] then
+                                data = "text="..url_encode(u8(l)).."&options=4"
+                                local temp_str = false
+                                asyncHttpRequest('POST', 'https://translate.yandex.net/api/v1/tr.json/translate?id=d4d6d78b.627ff9fb.55d49441.74722d74657874-0-0&srv=tr-text&lang='..inifile.lang.source..'-'..inifile.lang.target..'&reason=auto&format=text&yu=1634153241652478613&yum=1642274859919564853', {data = data, headers = headers},
+                                function(response)
+                                    local isjson, array = pcall(decodeJson, response.text)
+                                    if isjson and response.status_code == 200 then
+                                        if array.text[1] then
+                                            local result_text = array.text[1]
+                                            if result_text:find("\\t") then result_text = result_text:gsub("\\t", "\t") end
+                                            temp_str = u8:decode(result_text)
+                                            if s == #v.messages then finish = true end
+                                        end
+                                    else -- if there is no connection
+                                        -- disable the translation, cancel all threads
+                                        inifile.translate.enable_out = false
+                                        inifile.translate.enable_in = false
+                                        cb_enable_in[0] = false
+                                        cb_enable_out[0] = false
+                                        v.messages = {}
+                                        sampAddChatMessage("[Translator]: "..phrases.NO_CONNECTION, 0xCCCCCC)
                                     end
-                                else -- if there is no connection
-                                    -- disable the translation, cancel all threads
+                                end,
+                                function(err) 
+                                    reqerror = true
                                     inifile.translate.enable_out = false
                                     inifile.translate.enable_in = false
                                     cb_enable_in[0] = false
                                     cb_enable_out[0] = false
                                     threads = {}
-                                    if s == #v.messages then 
-                                        sampAddChatMessage("[Translator]: "..phrases.NO_CONNECTION, 0xCCCCCC)
-                                        finish = true 
-                                    end
+                                    sampAddChatMessage("[Translator]: "..phrases.NO_CONNECTION, 0xCCCCCC)
+                                    finish = true
+                                end)
+                                while not temp_str and not reqerror do wait(0) end
+                                if not reqerror then 
+                                    result[r] = temp_str
+                                else
+                                    if t[2]:find("\\t") then t[2] = t[2]:gsub("\\t", "\t") end -- return tabs
+                                    result = {t[2]}
                                 end
-                            end)
-                            while not temp_str do wait(0) end
-                            result[r] = temp_str
+                            end
                         end
                         t[2] = table.concat(result, " ")
                         if s == #v.messages then finish = true end
                     else
                         if s == #v.messages then finish = true end
                     end
+                    if reqerror then reqerror = false break end
                 end
-                while not finish do
-                    wait(0)
-                    if os.time() - reqtime >= 2 then finish = true end -- skip, if the translation was not received 2+ seconds
-                end
+                while not finish do wait(0) end
                 local bs = raknetNewBitStream()
                 if v.style == 5 or v.style == 6 then nop_sendchat = true end
                 if v.style == 1 then -- onServerMessage
@@ -414,7 +426,7 @@ end
 
 function sampev.onPlayerChatBubble(playerid, color, distance, duration, message)
     if inifile.translate.enable_in and inifile.options.t_chatbubbles then
-        table.insert(chatbubbles, {playerid = playerid, color = color, distance = distance, duration = os.time() + duration/1000, message = message})
+        table.insert(chatbubbles, {playerid = playerid, color = color, distance = distance, duration = os.clock() + duration/1000, message = message})
         return false
     end
 end
