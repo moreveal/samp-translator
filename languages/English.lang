@@ -1,4 +1,6 @@
 {NO_CONNECTION, "Connection with the translator is not established"},
+{SCRIPT_GUPDATE, "The update was successfully installed"},
+{AU_STATUS, "Auto-update"},
 {TRANSLATE_MES_IN, "Translation of messages from the server"},
 {TRANSLATE_MES_OUT, "Translation of messages sent to the server"},
 {CB_SOURCE, "Server language"},
