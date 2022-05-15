@@ -41,7 +41,7 @@ local defaultIni = {
     },
     options = {
         scriptlang = "English", -- script language
-        autoupdate = true, -- status of autoupdate
+        autoupdate = false, -- status of autoupdate
         t_chat = true, -- chat translation
         t_dialogs = true, -- dialogs translation
         t_chatbubbles = true, -- chatbubbles translation
