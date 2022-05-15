@@ -147,7 +147,11 @@ imguiFrame[1] = imgui.OnFrame(
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
         imgui.SetNextWindowSize(imgui.ImVec2(380, 240), imgui.Cond.FirstUseEver)
         imgui.Begin("SAMP Translator", renderMainWindow, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
-        imgui.SetCursorPosX(280)
+        if imgui.Checkbox(u8(phrases.AU_STATUS), cb_autoupdate) then
+            inifile.options.autoupdate = not inifile.options.autoupdate
+            inicfg.save(inifile, cpath)
+        end
+        imgui.SameLine(280)
         imgui.PushItemWidth(95)
         if imgui.Combo("##ScriptLang", combo_scriptlangs_index, combo_scriptlangs, #combo_scriptlangs_text) then
             inifile.options.scriptlang = combo_scriptlangs_text[combo_scriptlangs_index[0] + 1]
@@ -194,11 +198,6 @@ imguiFrame[1] = imgui.OnFrame(
         imgui.SameLine(224)
         if imgui.Checkbox(u8(phrases.T_TEXTLABELS), cb_textlabels) then
             inifile.options.t_textlabels = not inifile.options.t_textlabels
-            inicfg.save(inifile, cpath)
-        end
-        imgui.Separator()
-        if imgui.Checkbox(u8(phrases.AU_STATUS), cb_autoupdate) then
-            inifile.options.autoupdate = not inifile.options.autoupdate
             inicfg.save(inifile, cpath)
         end
         imgui.PopItemWidth()
