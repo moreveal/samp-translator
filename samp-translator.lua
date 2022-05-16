@@ -22,9 +22,16 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 local threads, textlabels, chatbubbles = {}, {}, {}
 local phrases = {}
 local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro"}
+local langs_version = 1
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
 local update_url = "https://github.com/moreveal/samp-translator/raw/main/samp-translator.lua"
+local langs_url = {
+    "https://raw.githubusercontent.com/moreveal/samp-translator/main/languages/version", -- get actual version of the langs
+    "https://github.com/moreveal/samp-translator/raw/main/languages/English.lang",
+    "https://github.com/moreveal/samp-translator/raw/main/languages/Russian.lang",
+    "https://github.com/moreveal/samp-translator/raw/main/languages/Ukranian.lang"
+}
 ------------
 
 if not doesDirectoryExist(main_dir.."languages") then createDirectory(main_dir.."languages") end
@@ -42,6 +49,7 @@ local defaultIni = {
     options = {
         scriptlang = "English", -- script language
         autoupdate = false, -- status of autoupdate
+        server = false, -- whether to transfer requests through the script server
         t_chat = true, -- chat translation
         t_dialogs = true, -- dialogs translation
         t_chatbubbles = true, -- chatbubbles translation
@@ -74,6 +82,7 @@ local cb_dialogs = new.bool(inifile.options.t_dialogs)
 local cb_chatbubbles = new.bool(inifile.options.t_chatbubbles)
 local cb_textlabels = new.bool(inifile.options.t_textlabels)
 local cb_autoupdate = new.bool(inifile.options.autoupdate)
+local cb_scriptserver = new.bool(inifile.options.server)
 
 local combo_scriptlangs_index = new.int(0)
 local combo_scriptlangs_text = {}
@@ -143,6 +152,15 @@ end)
 imguiFrame[1] = imgui.OnFrame(
     function() return renderMainWindow[0] and not isPauseMenuActive() end,
     function(player)
+        local function imguiHint(text)
+            if imgui.IsItemHovered() then
+                imgui.BeginTooltip()
+                    imgui.PushTextWrapPos(600)
+                        imgui.TextUnformatted(u8(text))
+                    imgui.PopTextWrapPos()
+                imgui.EndTooltip()
+            end
+        end
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
         imgui.SetNextWindowSize(imgui.ImVec2(380, 240), imgui.Cond.FirstUseEver)
         imgui.Begin("SAMP Translator", renderMainWindow, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
@@ -150,6 +168,7 @@ imguiFrame[1] = imgui.OnFrame(
             inifile.options.autoupdate = not inifile.options.autoupdate
             inicfg.save(inifile, cpath)
         end
+        imguiHint(phrases.H_AUINFO)
         imgui.SameLine(280)
         imgui.PushItemWidth(95)
         if imgui.Combo("##ScriptLang", combo_scriptlangs_index, combo_scriptlangs, #combo_scriptlangs_text) then
@@ -165,11 +184,13 @@ imguiFrame[1] = imgui.OnFrame(
             if inifile.translate.enable_out then threads = {} end
             inicfg.save(inifile, cpath)
         end
+        imguiHint(phrases.H_TMO)
         if imgui.Checkbox(u8(phrases.TRANSLATE_MES_IN), cb_enable_in) then
             inifile.translate.enable_in = not inifile.translate.enable_in
             if inifile.translate.enable_in then threads = {} end
             inicfg.save(inifile, cpath)
         end
+        imguiHint(phrases.H_TMI)
         imgui.Separator()
         imgui.PushItemWidth(235)
         if imgui.Combo(u8(phrases.CB_SOURCE), combo_langs_sindex, combo_langs, #combo_langs_text) then
@@ -200,6 +221,12 @@ imguiFrame[1] = imgui.OnFrame(
             inicfg.save(inifile, cpath)
         end
         imgui.PopItemWidth()
+        imgui.Separator()
+        if imgui.Checkbox(u8(phrases.S_STATUS), cb_scriptserver) then
+            inifile.options.server = not inifile.options.server
+            inicfg.save(inifile, cpath)
+        end
+        imguiHint(phrases.H_SINFO)
         imgui.End()
     end
 )
@@ -235,13 +262,37 @@ function main()
                         f:write(content)
                         f:close()
                         sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
+                        thisScript():reload()
                     end
                     wait(100)
                     os.remove(tempname)
                 end)
             end
         end)
-    end
+        tempname = os.tmpname()
+        local function updateLangs()
+            local downloads = {}
+            for i = 2, #langs_url do
+                local d_id = downloadUrlToFile(langs_url[i], main_dir.."languages\\"..langs_url:match(".+/(.+)"), function(id, status)
+                    if status == 6 then if i == #langs_url then updated = true end end
+                end)
+            end
+        end
+        downloadUrlToFile(langs_url[1], tempname, function(id, status)
+            if status == 6 then
+                lua_thread.create(function()
+                    wait(100)
+                    local f = io.open(tempname, "r")
+                    local content = f:read("*a")
+                    f:close()
+                    if tonumber(content) > langs_version then updateLangs() else updated = true end
+                    wait(100)
+                    os.remove(tempname)
+                end)
+            end
+        end)
+    else updated = true end
+    while not updated do wait(0) end
 
     lua_thread.create(function()
         while true do
@@ -317,7 +368,6 @@ function main()
                                     math.randomseed(os.time())
                                     local rand = string.char(math.random(65, 90)):lower()
                                     local fixcmd = "/"..rand..cmd..rand
-                                    print(word, "/"..rand..cmd..rand)
                                     t[2] = t[2]:gsub(word, fixcmd) -- dont translate a commands
                                     table.insert(except, {old = word, new = fixcmd})
                                 end
@@ -349,9 +399,11 @@ function main()
                         local result = split_by_lines(t[2], 650)
                         for r,l in ipairs(result) do
                             if result[r] then
-                                data = "text="..url_encode(u8(l)).."&options=4"
+                                local source, target, url, data = t[3] and inifile.lang.target or inifile.lang.source, t[3] and inifile.lang.source or inifile.lang.target
+                                if inifile.options.server then url, data = 'http://d952488j.beget.tech/translate.php', "source="..source.."&target="..target.."&text="..l
+                                else url, data = 'https://translate.yandex.net/api/v1/tr.json/translate?id=d4d6d78b.627ff9fb.55d49441.74722d74657874-0-0&srv=tr-text&lang='..source..'-'..target..'&reason=auto&format=text&yu=1634153241652478613&yum=1642274859919564853', "text="..url_encode(u8(l)).."&options=4" end
                                 local temp_str = false
-                                asyncHttpRequest('POST', 'https://translate.yandex.net/api/v1/tr.json/translate?id=d4d6d78b.627ff9fb.55d49441.74722d74657874-0-0&srv=tr-text&lang='..(t[3] and inifile.lang.target or inifile.lang.source)..'-'..(t[3] and inifile.lang.source or inifile.lang.target)..'&reason=auto&format=text&yu=1634153241652478613&yum=1642274859919564853', {data = data, headers = headers},
+                                asyncHttpRequest('POST', url, {data = data, headers = headers},
                                 function(response)
                                     local isjson, array = pcall(decodeJson, response.text)
                                     if isjson and response.status_code == 200 then
