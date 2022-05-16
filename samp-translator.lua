@@ -100,13 +100,14 @@ function main()
 
     -- auto-update
     if inifile.options.autoupdate then
-        local tempname = os.tmpname()
-        downloadUrlToFile(update_url, tempname, function(id, status)
+        local tempname_script = os.tmpname()
+        downloadUrlToFile(update_url, tempname_script, function(id, status)
             if status == 6 then
                 lua_thread.create(function()
                     wait(100)
-                    local f = io.open(tempname, "r")
+                    local f = io.open(tempname_script, "r")
                     local content = f:read("*a")
+                    wait(100)
                     f:close()
                     if tonumber(content:match("script_version_number%((%d+)%)")) > thisScript().version_num then
                         f = io.open(thisScript().path, "w+")
@@ -115,37 +116,39 @@ function main()
                         sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
                         thisScript():reload()
                     end
-                    wait(150)
-                    os.remove(tempname)
+                    wait(50)
+                    os.remove(tempname_script)
                 end)
             end
         end)
         local function updateLangs()
-            local downloads = {}
             for i = 2, #langs_url do
-                downloadUrlToFile(langs_url[i], main_dir.."languages\\"..langs_url[i]:match("/(.+%.lang)"), function(id, status)
-                    if status == 6 then if i == #langs_url then updated = true end end
-                    sampAddChatMessage("[LOG]: Обновляется язык #"..i-1, -1)
+                downloadUrlToFile(langs_url[i], main_dir.."languages\\"..langs_url[i]:match(".+/(.+%.lang)"), function(id, status)
+                    if status == 6 then
+                        if i == #langs_url then updated = true end
+                    end
                 end)
             end
         end
-        tempname = os.tmpname()
-        sampAddChatMessage("[LOG]: Проверяю обновление языков", -1)
-        downloadUrlToFile(langs_url[1], tempname, function(id, status)
+        local tempname_lang = os.tmpname()
+        downloadUrlToFile(langs_url[1], tempname_lang, function(id, status)
             if status == 6 then
                 lua_thread.create(function()
                     wait(100)
-                    local f = io.open(tempname, "r")
+                    local f = io.open(tempname_lang, "r")
                     local content = f:read("*a")
+                    wait(100)
                     f:close()
-                    if tonumber(content) > 0 then sampAddChatMessage("[LOG]: Требуется обновление языков", -1) updateLangs() else updated = true end
-                    wait(150)
-                    os.remove(tempname)
+                    if tonumber(content) > langs_version then updateLangs() else updated = true end
+                    wait(50)
+                    os.remove(tempname_lang)
                 end)
             end
         end)
     else updated = true end
     while not updated do wait(0) end
+    wait(500)
+    updateScriptLang()
 
     lua_thread.create(function()
         while true do
@@ -425,10 +428,10 @@ function updateScriptLang()
     local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
     assert(f, "The language file was not found")
     local content = f:read("*a")
+    f:close()
     for var, text in content:gmatch("{(.-),%s+\"(.-)\"}") do phrases[var] = u8:decode(text) end
     updateCombo()
 end
-updateScriptLang()
 ------------------
 
 imgui.OnInitialize(function()
