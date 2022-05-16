@@ -1,5 +1,5 @@
-script_version_number(3)
-script_version("release-1.2")
+script_version_number(5)
+script_version("release-1.4")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, sampev, mimgui, lfs, effil/requests")
@@ -14,6 +14,7 @@ local inicfg = require 'inicfg'
 local ffi = require 'ffi'
 local lfs = require 'lfs'
 local wm = require 'windows.message'
+local vkeys = require 'vkeys'
 -- additionaly
 local sampev = require 'samp.events'
 local imgui = require 'mimgui'
@@ -218,12 +219,12 @@ function main()
                     except = {}
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") then -- if need to translate
                         for word in t[2]:gmatch("[^%s]+") do
-                            if word:find("^/") then
-                                local cmd = word:match("/(.+)")
+                            word = word:match("^(/%w+)")
+                            if word then
+                                local cmd = word:match("/(%w+)")
                                 if cmd then
                                     math.randomseed(os.time())
-                                    local rand = string.char(math.random(65, 90)):lower()
-                                    local fixcmd = "/"..rand..cmd..rand
+                                    local fixcmd = "/".."2x"..cmd.."2x"
                                     t[2] = t[2]:gsub(word, fixcmd) -- dont translate a commands
                                     table.insert(except, {old = word, new = fixcmd})
                                 end
@@ -265,6 +266,7 @@ function main()
                                     if isjson and response.status_code == 200 then
                                         if array.text[1] then
                                             local result_text = array.text[1]
+                                            if result_text:find("%s/%s") then result_text = result_text:gsub("%s/%s", "") end
                                             if result_text:find(tab_replace) then result_text = result_text:gsub(tab_replace, "\t") end
                                             for _,v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
                                             temp_str = u8:decode(result_text)
