@@ -218,17 +218,19 @@ function main()
                 for s,t in pairs(v.messages) do
                     except = {}
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") then -- if need to translate
+                        -- fix translation of commands
                         for word in t[2]:gmatch("[^%s]+") do
                             word = word:match("^(/%w+)")
                             if word then
                                 local cmd = word:match("/(%w+)")
                                 if cmd then
                                     local fixcmd = "/".."2x"..cmd.."2x"
-                                    t[2] = t[2]:gsub(word, fixcmd) -- dont translate a commands
+                                    t[2] = t[2]:gsub(word, fixcmd)
                                     table.insert(except, {old = word, new = fixcmd})
                                 end
                             end
                         end
+                        
                         math.randomseed(os.time())
                         local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
@@ -266,9 +268,14 @@ function main()
                                     if isjson and response.status_code == 200 then
                                         if array.text[1] then
                                             local result_text = array.text[1]
-                                            if result_text:find("%s/%s") then result_text = result_text:gsub("%s/%s", "") end
+                                            -- fix tabs
                                             if result_text:find(tab_replace) then result_text = result_text:gsub(tab_replace, "\t") end
+
+                                            -- fix translation of commands
+                                            if result_text:find("%s/%s") then result_text = result_text:gsub("%s/%s", "") end
                                             for _,v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
+                                            if result_text:find("2x.-2x") then result_text = result_text:gsub("2x", "") end
+
                                             temp_str = u8:decode(result_text)
                                             if s == #v.messages then finish = true end
                                         end
