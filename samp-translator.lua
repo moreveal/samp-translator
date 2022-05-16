@@ -230,7 +230,7 @@ function main()
                                 end
                             end
                         end
-                        local tab_replace = "0x"..math.random(10,999) -- to escaping the tab is not the best solution, cause it can also be translated
+                        local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
                         local headers = {
                             ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
