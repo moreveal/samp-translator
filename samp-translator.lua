@@ -57,189 +57,6 @@ local defaultIni = {
     }
 }
 inifile = inicfg.load(defaultIni, cpath)
-function updateCombo()
-    combo_langs_text = {u8(phrases.L_ENGLISH), u8(phrases.L_RUSSIAN), u8(phrases.L_UKRANIAN), u8(phrases.L_BELARUSIAN), u8(phrases.L_ITALIAN), u8(phrases.L_BULGARIAN), u8(phrases.L_SPANISH), u8(phrases.L_KAZAKH), u8(phrases.L_GERMAN), u8(phrases.L_POLISH), u8(phrases.L_SERBIAN), u8(phrases.L_FRENCH), u8(phrases.L_ROMANIAN)}
-    combo_langs = new['const char*'][#combo_langs_text](combo_langs_text)
-end
--- loading lang-file
-function updateScriptLang()
-    local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
-    assert(f, "The language file was not found")
-    local content = f:read("*a")
-    for var, text in content:gmatch("{(.-),%s+\"(.-)\"}") do phrases[var] = u8:decode(text) end
-    updateCombo()
-end
-updateScriptLang()
-
--- imgui variables
-local imguiFrame = {}
-local renderMainWindow = new.bool()
-
-local cb_enable_in = new.bool(inifile.translate.enable_in)
-local cb_enable_out = new.bool(inifile.translate.enable_out)
-local cb_chat = new.bool(inifile.options.t_chat)
-local cb_dialogs = new.bool(inifile.options.t_dialogs)
-local cb_chatbubbles = new.bool(inifile.options.t_chatbubbles)
-local cb_textlabels = new.bool(inifile.options.t_textlabels)
-local cb_autoupdate = new.bool(inifile.options.autoupdate)
-local cb_scriptserver = new.bool(inifile.options.server)
-
-local combo_scriptlangs_index = new.int(0)
-local combo_scriptlangs_text = {}
-local scriptlangs_num = -1
-for file in lfs.dir(main_dir.."languages") do
-    if file:match("%.lang$") then
-        scriptlangs_num = scriptlangs_num + 1
-        local filename = u8(file:match("(.+)%.lang"))
-        if inifile.options.scriptlang == filename then
-            combo_scriptlangs_index[0] = scriptlangs_num
-        end
-        table.insert(combo_scriptlangs_text, filename)
-    end
-end
-local combo_scriptlangs = new['const char*'][#combo_scriptlangs_text](combo_scriptlangs_text)
-
-local combo_langs_tindex, combo_langs_sindex = new.int(0), new.int(0)
-for k,v in ipairs(langs_association) do
-    if inifile.lang.source == v then
-        combo_langs_sindex[0] = k-1
-    elseif inifile.lang.target == v then
-        combo_langs_tindex[0] = k-1
-    end
-end
-------------------
-
-imgui.OnInitialize(function()
-    local config = imgui.ImFontConfig()
-    config.MergeMode = true
-
-    imgui.SwitchContext()
-    local style = imgui.GetStyle()
-    style.Colors[imgui.Col.Text] = imgui.ImVec4(1.00, 1.00, 1.00, 1.00)
-    style.Colors[imgui.Col.TextDisabled] = imgui.ImVec4(0.60, 0.60, 0.60, 1.00)
-    style.Colors[imgui.Col.WindowBg] = imgui.ImVec4(0.11, 0.10, 0.11, 1.00)
-    style.Colors[imgui.Col.ChildBg] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
-    style.Colors[imgui.Col.PopupBg] = imgui.ImVec4(0.10, 0.10, 0.10, 0.80)
-    style.Colors[imgui.Col.Border] = imgui.ImVec4(0.86, 0.86, 0.86, 0.00)
-    style.Colors[imgui.Col.BorderShadow] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
-    style.Colors[imgui.Col.FrameBg] = imgui.ImVec4(0.21, 0.20, 0.21, 0.40)
-    style.Colors[imgui.Col.FrameBgHovered] = imgui.ImVec4(0.21, 0.20, 0.21, 0.60)
-    style.Colors[imgui.Col.FrameBgActive] = imgui.ImVec4(0.00, 0.46, 0.65, 0.00)
-    style.Colors[imgui.Col.TitleBg] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.TitleBgCollapsed] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.TitleBgActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.MenuBarBg] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.ScrollbarBg] = imgui.ImVec4(0.11, 0.10, 0.11, 1.00)
-    style.Colors[imgui.Col.ScrollbarGrab] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.ScrollbarGrabHovered] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.ScrollbarGrabActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.CheckMark] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.SliderGrab] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.SliderGrabActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.Button] = imgui.ImVec4(0.30, 0.30, 0.30, 0.90)
-    style.Colors[imgui.Col.ButtonHovered] = imgui.ImVec4(0.00, 0.53, 1.00, 1.00)
-    style.Colors[imgui.Col.ButtonActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.Header] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.HeaderHovered] = imgui.ImVec4(0.00, 0.53, 1.00, 1.00)
-    style.Colors[imgui.Col.HeaderActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
-    style.Colors[imgui.Col.ResizeGrip] = imgui.ImVec4(1.00, 1.00, 1.00, 0.30)
-    style.Colors[imgui.Col.ResizeGripHovered] = imgui.ImVec4(0.00, 0.53, 1.00, 1.00)
-    style.Colors[imgui.Col.ResizeGripActive] = imgui.ImVec4(1.00, 1.00, 1.00, 0.90)
-    style.Colors[imgui.Col.TextSelectedBg] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
-    style.Colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
-end)
-
-imguiFrame[1] = imgui.OnFrame(
-    function() return renderMainWindow[0] and not isPauseMenuActive() end,
-    function(player)
-        local function imguiHint(text)
-            if imgui.IsItemHovered() then
-                imgui.BeginTooltip()
-                    imgui.PushTextWrapPos(600)
-                        imgui.TextUnformatted(u8(text))
-                    imgui.PopTextWrapPos()
-                imgui.EndTooltip()
-            end
-        end
-        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        imgui.SetNextWindowSize(imgui.ImVec2(380, 240), imgui.Cond.FirstUseEver)
-        imgui.Begin("SAMP Translator", renderMainWindow, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
-        if imgui.Checkbox(u8(phrases.AU_STATUS), cb_autoupdate) then
-            inifile.options.autoupdate = not inifile.options.autoupdate
-            inicfg.save(inifile, cpath)
-        end
-        imguiHint(phrases.H_AUINFO)
-        imgui.SameLine(280)
-        imgui.PushItemWidth(95)
-        if imgui.Combo("##ScriptLang", combo_scriptlangs_index, combo_scriptlangs, #combo_scriptlangs_text) then
-            inifile.options.scriptlang = combo_scriptlangs_text[combo_scriptlangs_index[0] + 1]
-            inicfg.save(inifile, cpath)
-            updateScriptLang()
-            updateCombo()
-        end
-        imgui.PopItemWidth()
-        imgui.Separator()
-        if imgui.Checkbox(u8(phrases.TRANSLATE_MES_OUT), cb_enable_out) then
-            inifile.translate.enable_out = not inifile.translate.enable_out
-            if inifile.translate.enable_out then threads = {} end
-            inicfg.save(inifile, cpath)
-        end
-        imguiHint(phrases.H_TMO)
-        if imgui.Checkbox(u8(phrases.TRANSLATE_MES_IN), cb_enable_in) then
-            inifile.translate.enable_in = not inifile.translate.enable_in
-            if inifile.translate.enable_in then threads = {} end
-            inicfg.save(inifile, cpath)
-        end
-        imguiHint(phrases.H_TMI)
-        imgui.Separator()
-        imgui.PushItemWidth(235)
-        if imgui.Combo(u8(phrases.CB_SOURCE), combo_langs_sindex, combo_langs, #combo_langs_text) then
-            inifile.lang.source = langs_association[combo_langs_sindex[0] + 1]
-            inicfg.save(inifile, cpath)
-        end
-        if imgui.Combo(u8(phrases.CB_TARGET), combo_langs_tindex, combo_langs, #combo_langs_text) then
-            inifile.lang.target = langs_association[combo_langs_tindex[0] + 1]
-            inicfg.save(inifile, cpath)
-        end
-        imgui.Separator()
-        if imgui.Checkbox(u8(phrases.T_CHAT), cb_chat) then
-            inifile.options.t_chat = not inifile.options.t_chat
-            inicfg.save(inifile, cpath)
-        end
-        imgui.SameLine(224)
-        if imgui.Checkbox(u8(phrases.T_DIALOGS), cb_dialogs) then
-            inifile.options.t_dialogs = not inifile.options.t_dialogs
-            inicfg.save(inifile, cpath)
-        end
-        if imgui.Checkbox(u8(phrases.T_CHATBUBBLES), cb_chatbubbles) then
-            inifile.options.t_chatbubbles = not inifile.options.t_chatbubbles
-            inicfg.save(inifile, cpath)
-        end
-        imgui.SameLine(224)
-        if imgui.Checkbox(u8(phrases.T_TEXTLABELS), cb_textlabels) then
-            inifile.options.t_textlabels = not inifile.options.t_textlabels
-            inicfg.save(inifile, cpath)
-        end
-        imgui.PopItemWidth()
-        imgui.Separator()
-        if imgui.Checkbox(u8(phrases.S_STATUS), cb_scriptserver) then
-            inifile.options.server = not inifile.options.server
-            inicfg.save(inifile, cpath)
-        end
-        imguiHint(phrases.H_SINFO)
-        imgui.End()
-    end
-)
-addEventHandler('onWindowMessage', function(msg, wparam, lparam)
-    if msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN then
-        if wparam == 27 and not sampIsChatInputActive() and not sampIsDialogActive() then -- escape button
-            if renderMainWindow[0] then
-                renderMainWindow[0] = false
-                consumeWindowMessage(true, false)
-            end
-        end
-    end
-end)
 ---------------
 
 function main()
@@ -257,7 +74,7 @@ function main()
                     local f = io.open(tempname, "r")
                     local content = f:read("*a")
                     f:close()
-                    if tonumber(content:match("script_version_number%((%d+)%)")) > thisScript().version_num then
+                    if tonumber(content:match("script_version_number%((%d+)%)")) > 1 then
                         f = io.open(thisScript().path, "w+")
                         f:write(content)
                         f:close()
@@ -562,6 +379,189 @@ function sampev.onSendCommand(cmd)
         end
     end
 end
+
+function updateCombo()
+    combo_langs_text = {u8(phrases.L_ENGLISH), u8(phrases.L_RUSSIAN), u8(phrases.L_UKRANIAN), u8(phrases.L_BELARUSIAN), u8(phrases.L_ITALIAN), u8(phrases.L_BULGARIAN), u8(phrases.L_SPANISH), u8(phrases.L_KAZAKH), u8(phrases.L_GERMAN), u8(phrases.L_POLISH), u8(phrases.L_SERBIAN), u8(phrases.L_FRENCH), u8(phrases.L_ROMANIAN)}
+    combo_langs = new['const char*'][#combo_langs_text](combo_langs_text)
+end
+-- loading lang-file
+function updateScriptLang()
+    local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
+    assert(f, "The language file was not found")
+    local content = f:read("*a")
+    for var, text in content:gmatch("{(.-),%s+\"(.-)\"}") do phrases[var] = u8:decode(text) end
+    updateCombo()
+end
+updateScriptLang()
+
+-- imgui variables
+local imguiFrame = {}
+local renderMainWindow = new.bool()
+
+local cb_enable_in = new.bool(inifile.translate.enable_in)
+local cb_enable_out = new.bool(inifile.translate.enable_out)
+local cb_chat = new.bool(inifile.options.t_chat)
+local cb_dialogs = new.bool(inifile.options.t_dialogs)
+local cb_chatbubbles = new.bool(inifile.options.t_chatbubbles)
+local cb_textlabels = new.bool(inifile.options.t_textlabels)
+local cb_autoupdate = new.bool(inifile.options.autoupdate)
+local cb_scriptserver = new.bool(inifile.options.server)
+
+local combo_scriptlangs_index = new.int(0)
+local combo_scriptlangs_text = {}
+local scriptlangs_num = -1
+for file in lfs.dir(main_dir.."languages") do
+    if file:match("%.lang$") then
+        scriptlangs_num = scriptlangs_num + 1
+        local filename = u8(file:match("(.+)%.lang"))
+        if inifile.options.scriptlang == filename then
+            combo_scriptlangs_index[0] = scriptlangs_num
+        end
+        table.insert(combo_scriptlangs_text, filename)
+    end
+end
+local combo_scriptlangs = new['const char*'][#combo_scriptlangs_text](combo_scriptlangs_text)
+local combo_langs_tindex, combo_langs_sindex = new.int(0), new.int(0)
+for k,v in ipairs(langs_association) do
+    if inifile.lang.source == v then
+        combo_langs_sindex[0] = k-1
+    elseif inifile.lang.target == v then
+        combo_langs_tindex[0] = k-1
+    end
+end
+------------------
+
+imgui.OnInitialize(function()
+    local config = imgui.ImFontConfig()
+    config.MergeMode = true
+
+    imgui.SwitchContext()
+    local style = imgui.GetStyle()
+    style.Colors[imgui.Col.Text] = imgui.ImVec4(1.00, 1.00, 1.00, 1.00)
+    style.Colors[imgui.Col.TextDisabled] = imgui.ImVec4(0.60, 0.60, 0.60, 1.00)
+    style.Colors[imgui.Col.WindowBg] = imgui.ImVec4(0.11, 0.10, 0.11, 1.00)
+    style.Colors[imgui.Col.ChildBg] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+    style.Colors[imgui.Col.PopupBg] = imgui.ImVec4(0.10, 0.10, 0.10, 0.80)
+    style.Colors[imgui.Col.Border] = imgui.ImVec4(0.86, 0.86, 0.86, 0.00)
+    style.Colors[imgui.Col.BorderShadow] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+    style.Colors[imgui.Col.FrameBg] = imgui.ImVec4(0.21, 0.20, 0.21, 0.40)
+    style.Colors[imgui.Col.FrameBgHovered] = imgui.ImVec4(0.21, 0.20, 0.21, 0.60)
+    style.Colors[imgui.Col.FrameBgActive] = imgui.ImVec4(0.00, 0.46, 0.65, 0.00)
+    style.Colors[imgui.Col.TitleBg] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.TitleBgCollapsed] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.TitleBgActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.MenuBarBg] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.ScrollbarBg] = imgui.ImVec4(0.11, 0.10, 0.11, 1.00)
+    style.Colors[imgui.Col.ScrollbarGrab] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.ScrollbarGrabHovered] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.ScrollbarGrabActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.CheckMark] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.SliderGrab] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.SliderGrabActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.Button] = imgui.ImVec4(0.30, 0.30, 0.30, 0.90)
+    style.Colors[imgui.Col.ButtonHovered] = imgui.ImVec4(0.00, 0.53, 1.00, 1.00)
+    style.Colors[imgui.Col.ButtonActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.Header] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.HeaderHovered] = imgui.ImVec4(0.00, 0.53, 1.00, 1.00)
+    style.Colors[imgui.Col.HeaderActive] = imgui.ImVec4(0.00, 0.46, 0.65, 1.00)
+    style.Colors[imgui.Col.ResizeGrip] = imgui.ImVec4(1.00, 1.00, 1.00, 0.30)
+    style.Colors[imgui.Col.ResizeGripHovered] = imgui.ImVec4(0.00, 0.53, 1.00, 1.00)
+    style.Colors[imgui.Col.ResizeGripActive] = imgui.ImVec4(1.00, 1.00, 1.00, 0.90)
+    style.Colors[imgui.Col.TextSelectedBg] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+    style.Colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+end)
+
+imguiFrame[1] = imgui.OnFrame(
+    function() return renderMainWindow[0] and not isPauseMenuActive() end,
+    function(player)
+        local function imguiHint(text)
+            if imgui.IsItemHovered() then
+                imgui.BeginTooltip()
+                    imgui.PushTextWrapPos(600)
+                        imgui.TextUnformatted(u8(text))
+                    imgui.PopTextWrapPos()
+                imgui.EndTooltip()
+            end
+        end
+        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+        imgui.SetNextWindowSize(imgui.ImVec2(380, 240), imgui.Cond.FirstUseEver)
+        imgui.Begin("SAMP Translator", renderMainWindow, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
+        if imgui.Checkbox(u8(phrases.AU_STATUS), cb_autoupdate) then
+            inifile.options.autoupdate = not inifile.options.autoupdate
+            inicfg.save(inifile, cpath)
+        end
+        imguiHint(phrases.H_AUINFO)
+        imgui.SameLine(280)
+        imgui.PushItemWidth(95)
+        if imgui.Combo("##ScriptLang", combo_scriptlangs_index, combo_scriptlangs, #combo_scriptlangs_text) then
+            inifile.options.scriptlang = combo_scriptlangs_text[combo_scriptlangs_index[0] + 1]
+            inicfg.save(inifile, cpath)
+            updateScriptLang()
+            updateCombo()
+        end
+        imgui.PopItemWidth()
+        imgui.Separator()
+        if imgui.Checkbox(u8(phrases.TRANSLATE_MES_OUT), cb_enable_out) then
+            inifile.translate.enable_out = not inifile.translate.enable_out
+            if inifile.translate.enable_out then threads = {} end
+            inicfg.save(inifile, cpath)
+        end
+        imguiHint(phrases.H_TMO)
+        if imgui.Checkbox(u8(phrases.TRANSLATE_MES_IN), cb_enable_in) then
+            inifile.translate.enable_in = not inifile.translate.enable_in
+            if inifile.translate.enable_in then threads = {} end
+            inicfg.save(inifile, cpath)
+        end
+        imguiHint(phrases.H_TMI)
+        imgui.Separator()
+        imgui.PushItemWidth(235)
+        if imgui.Combo(u8(phrases.CB_SOURCE), combo_langs_sindex, combo_langs, #combo_langs_text) then
+            inifile.lang.source = langs_association[combo_langs_sindex[0] + 1]
+            inicfg.save(inifile, cpath)
+        end
+        if imgui.Combo(u8(phrases.CB_TARGET), combo_langs_tindex, combo_langs, #combo_langs_text) then
+            inifile.lang.target = langs_association[combo_langs_tindex[0] + 1]
+            inicfg.save(inifile, cpath)
+        end
+        imgui.Separator()
+        if imgui.Checkbox(u8(phrases.T_CHAT), cb_chat) then
+            inifile.options.t_chat = not inifile.options.t_chat
+            inicfg.save(inifile, cpath)
+        end
+        imgui.SameLine(224)
+        if imgui.Checkbox(u8(phrases.T_DIALOGS), cb_dialogs) then
+            inifile.options.t_dialogs = not inifile.options.t_dialogs
+            inicfg.save(inifile, cpath)
+        end
+        if imgui.Checkbox(u8(phrases.T_CHATBUBBLES), cb_chatbubbles) then
+            inifile.options.t_chatbubbles = not inifile.options.t_chatbubbles
+            inicfg.save(inifile, cpath)
+        end
+        imgui.SameLine(224)
+        if imgui.Checkbox(u8(phrases.T_TEXTLABELS), cb_textlabels) then
+            inifile.options.t_textlabels = not inifile.options.t_textlabels
+            inicfg.save(inifile, cpath)
+        end
+        imgui.PopItemWidth()
+        imgui.Separator()
+        if imgui.Checkbox(u8(phrases.S_STATUS), cb_scriptserver) then
+            inifile.options.server = not inifile.options.server
+            inicfg.save(inifile, cpath)
+        end
+        imguiHint(phrases.H_SINFO)
+        imgui.End()
+    end
+)
+addEventHandler('onWindowMessage', function(msg, wparam, lparam)
+    if msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN then
+        if wparam == 27 and not sampIsChatInputActive() and not sampIsDialogActive() then -- escape button
+            if renderMainWindow[0] then
+                renderMainWindow[0] = false
+                consumeWindowMessage(true, false)
+            end
+        end
+    end
+end)
 
 -- other
 local effil = require 'effil'
