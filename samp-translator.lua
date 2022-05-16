@@ -57,8 +57,42 @@ local defaultIni = {
     }
 }
 inifile = inicfg.load(defaultIni, cpath)
----------------
+-- imgui variables
+local imguiFrame = {}
+local renderMainWindow = new.bool()
 
+local cb_enable_in = new.bool(inifile.translate.enable_in)
+local cb_enable_out = new.bool(inifile.translate.enable_out)
+local cb_chat = new.bool(inifile.options.t_chat)
+local cb_dialogs = new.bool(inifile.options.t_dialogs)
+local cb_chatbubbles = new.bool(inifile.options.t_chatbubbles)
+local cb_textlabels = new.bool(inifile.options.t_textlabels)
+local cb_autoupdate = new.bool(inifile.options.autoupdate)
+local cb_scriptserver = new.bool(inifile.options.server)
+
+local combo_scriptlangs_index = new.int(0)
+local combo_scriptlangs_text = {}
+local scriptlangs_num = -1
+for file in lfs.dir(main_dir.."languages") do
+    if file:match("%.lang$") then
+        scriptlangs_num = scriptlangs_num + 1
+        local filename = u8(file:match("(.+)%.lang"))
+        if inifile.options.scriptlang == filename then
+            combo_scriptlangs_index[0] = scriptlangs_num
+        end
+        table.insert(combo_scriptlangs_text, filename)
+    end
+end
+local combo_scriptlangs = new['const char*'][#combo_scriptlangs_text](combo_scriptlangs_text)
+local combo_langs_tindex, combo_langs_sindex = new.int(0), new.int(0)
+for k,v in ipairs(langs_association) do
+    if inifile.lang.source == v then
+        combo_langs_sindex[0] = k-1
+    elseif inifile.lang.target == v then
+        combo_langs_tindex[0] = k-1
+    end
+end
+---------------
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
@@ -74,27 +108,29 @@ function main()
                     local f = io.open(tempname, "r")
                     local content = f:read("*a")
                     f:close()
-                    if tonumber(content:match("script_version_number%((%d+)%)")) > 1 then
+                    if tonumber(content:match("script_version_number%((%d+)%)")) > thisScript().version_num then
                         f = io.open(thisScript().path, "w+")
                         f:write(content)
                         f:close()
                         sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
                         thisScript():reload()
                     end
-                    wait(100)
+                    wait(150)
                     os.remove(tempname)
                 end)
             end
         end)
-        tempname = os.tmpname()
         local function updateLangs()
             local downloads = {}
             for i = 2, #langs_url do
-                local d_id = downloadUrlToFile(langs_url[i], main_dir.."languages\\"..langs_url:match(".+/(.+)"), function(id, status)
+                downloadUrlToFile(langs_url[i], main_dir.."languages\\"..langs_url[i]:match("/(.+%.lang)"), function(id, status)
                     if status == 6 then if i == #langs_url then updated = true end end
+                    sampAddChatMessage("[LOG]: Обновляется язык #"..i-1, -1)
                 end)
             end
         end
+        tempname = os.tmpname()
+        sampAddChatMessage("[LOG]: Проверяю обновление языков", -1)
         downloadUrlToFile(langs_url[1], tempname, function(id, status)
             if status == 6 then
                 lua_thread.create(function()
@@ -102,8 +138,8 @@ function main()
                     local f = io.open(tempname, "r")
                     local content = f:read("*a")
                     f:close()
-                    if tonumber(content) > langs_version then updateLangs() else updated = true end
-                    wait(100)
+                    if tonumber(content) > 0 then sampAddChatMessage("[LOG]: Требуется обновление языков", -1) updateLangs() else updated = true end
+                    wait(150)
                     os.remove(tempname)
                 end)
             end
@@ -393,42 +429,6 @@ function updateScriptLang()
     updateCombo()
 end
 updateScriptLang()
-
--- imgui variables
-local imguiFrame = {}
-local renderMainWindow = new.bool()
-
-local cb_enable_in = new.bool(inifile.translate.enable_in)
-local cb_enable_out = new.bool(inifile.translate.enable_out)
-local cb_chat = new.bool(inifile.options.t_chat)
-local cb_dialogs = new.bool(inifile.options.t_dialogs)
-local cb_chatbubbles = new.bool(inifile.options.t_chatbubbles)
-local cb_textlabels = new.bool(inifile.options.t_textlabels)
-local cb_autoupdate = new.bool(inifile.options.autoupdate)
-local cb_scriptserver = new.bool(inifile.options.server)
-
-local combo_scriptlangs_index = new.int(0)
-local combo_scriptlangs_text = {}
-local scriptlangs_num = -1
-for file in lfs.dir(main_dir.."languages") do
-    if file:match("%.lang$") then
-        scriptlangs_num = scriptlangs_num + 1
-        local filename = u8(file:match("(.+)%.lang"))
-        if inifile.options.scriptlang == filename then
-            combo_scriptlangs_index[0] = scriptlangs_num
-        end
-        table.insert(combo_scriptlangs_text, filename)
-    end
-end
-local combo_scriptlangs = new['const char*'][#combo_scriptlangs_text](combo_scriptlangs_text)
-local combo_langs_tindex, combo_langs_sindex = new.int(0), new.int(0)
-for k,v in ipairs(langs_association) do
-    if inifile.lang.source == v then
-        combo_langs_sindex[0] = k-1
-    elseif inifile.lang.target == v then
-        combo_langs_tindex[0] = k-1
-    end
-end
 ------------------
 
 imgui.OnInitialize(function()
