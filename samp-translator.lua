@@ -1,5 +1,5 @@
-script_version_number(5)
-script_version("release-1.4")
+script_version_number(6)
+script_version("release-1.5")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, sampev, mimgui, lfs, effil/requests")
@@ -230,7 +230,7 @@ function main()
                                 end
                             end
                         end
-                        
+
                         math.randomseed(os.time())
                         local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
@@ -320,10 +320,7 @@ function main()
                 local bs = raknetNewBitStream()
                 if v.style == 5 or v.style == 6 then nop_sendchat = true end
                 if v.style == 1 then -- onServerMessage
-                    raknetBitStreamWriteInt32(bs, v.messages[1][2]) -- color
-                    raknetBitStreamWriteInt32(bs, v.messages[2][2]:len()) -- text length
-                    raknetBitStreamWriteString(bs, v.messages[2][2]) -- text
-                    raknetEmulRpcReceiveBitStream(93, bs)
+                    sampAddChatMessage(v.messages[2][2], bit.rshift(v.messages[1][2], 8)) -- text, color
                 elseif v.style == 2 then -- onShowDialog
                     sampShowDialog(v.messages[1][2], v.messages[3][2], v.messages[6][2], v.messages[4][2], v.messages[5][2], v.messages[2][2]) -- dialogid, title, text, b1, b2, style
                     sampSetDialogClientside(false)
@@ -341,6 +338,8 @@ function main()
                     sampSendChat(v.messages[1][2])
                 elseif v.style == 6 then -- onSendCommand
                     sampSendChat(v.messages[1][2].." "..v.messages[2][2])
+                elseif v.style == 7 then -- onSendDialogResponse
+                    sampSendDialogResponse(v.messages[1][2], v.messages[2][2], v.messages[3][2], v.messages[4][2]) -- dialogid, button, list, input
                 end
                 raknetDeleteBitStream(bs)
                 table.remove(threads, k)
@@ -395,7 +394,7 @@ function sampev.onPlayerChatBubble(playerid, color, distance, duration, message)
 end
 
 function sampev.onSendChat(text)
-    if inifile.translate.enable_out then
+    if inifile.translate.enable_out and inifile.options.t_chat then
         if not nop_sendchat then
             table.insert(threads, {
                 style = 5,
@@ -411,20 +410,37 @@ function sampev.onSendChat(text)
 end
 
 function sampev.onSendCommand(cmd)
-    if inifile.translate.enable_out and cmd:find("/.-%s+.+") then
+    if inifile.translate.enable_out and inifile.options.t_chat then
         if not nop_sendchat then
             local command, text = cmd:match("(/.-)%s+(.+)")
-            table.insert(threads, {
-                style = 6,
-                messages = {
-                    {false, command},
-                    {true, text, "out"}
-                }
-            })
-            return false
+            if command and text then
+                table.insert(threads, {
+                    style = 6,
+                    messages = {
+                        {false, command},
+                        {true, text, "out"}
+                    }
+                })
+                return false
+            end
         else
             nop_sendchat = false
         end
+    end
+end
+
+function sampev.onSendDialogResponse(dialogid, button, list, input)
+    if inifile.translate.enable_out and inifile.options.t_dialogs and sampGetCurrentDialogType() == DIALOG_STYLE_INPUT then
+        table.insert(threads, {
+            style = 7,
+            messages = {
+                {false, dialogid},
+                {false, button},
+                {false, list},
+                {true, input, "out"}
+            }
+        })
+        return false
     end
 end
 
