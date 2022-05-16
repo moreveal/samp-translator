@@ -223,13 +223,13 @@ function main()
                             if word then
                                 local cmd = word:match("/(%w+)")
                                 if cmd then
-                                    math.randomseed(os.time())
                                     local fixcmd = "/".."2x"..cmd.."2x"
                                     t[2] = t[2]:gsub(word, fixcmd) -- dont translate a commands
                                     table.insert(except, {old = word, new = fixcmd})
                                 end
                             end
                         end
+                        math.randomseed(os.time())
                         local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
                         local headers = {
