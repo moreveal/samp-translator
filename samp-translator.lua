@@ -1,8 +1,8 @@
-script_version_number(6)
+script_version_number(7)
 script_version("release-1.5")
 script_authors("moreveal")
 script_description("SAMP Translator")
-script_dependencies("sampfuncs, sampev, mimgui, lfs, effil/requests")
+script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
 script_properties("work-in-pause")
 
 require 'lib.sampfuncs'
@@ -15,8 +15,8 @@ local ffi = require 'ffi'
 local lfs = require 'lfs'
 local wm = require 'windows.message'
 local vkeys = require 'vkeys'
+local vector3d = require 'vector3d'
 -- additionaly
-local sampev = require 'samp.events'
 local imgui = require 'mimgui'
 local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 -- variables
@@ -350,97 +350,108 @@ function main()
 end
 
 -- hooks
-function sampev.onServerMessage(color, text)
-    if inifile.translate.enable_in and inifile.options.t_chat then
-        table.insert(threads, {
-            style = 1, 
-            messages = {
-                {false, color},
-                {true, text}
-            }
-        })
-        return false
-    end
-end
-
-function sampev.onShowDialog(dialogid, style, title, b1, b2, text)
-    if inifile.translate.enable_in and inifile.options.t_dialogs then
-        table.insert(threads, {
-            style = 2,
-            messages = {
-                {false, dialogid},
-                {false, style},
-                {true, title},
-                {true, b1},
-                {true, b2},
-                {true, text}
-            }
-        })
-        return false
-    end
-end
-
-function sampev.onCreate3DText(id, color, position, distance, testLOS, pid, vid, text)
-    if inifile.translate.enable_in and inifile.options.t_textlabels then
-        table.insert(textlabels, {id = id, color = color, position = position, text = text, pid = pid, vid = vid})
-    end
-end
-
-function sampev.onPlayerChatBubble(playerid, color, distance, duration, message)
-    if inifile.translate.enable_in and inifile.options.t_chatbubbles then
-        table.insert(chatbubbles, {playerid = playerid, color = color, distance = distance, duration = os.clock() + duration/1000, message = message})
-        return false
-    end
-end
-
-function sampev.onSendChat(text)
-    if inifile.translate.enable_out and inifile.options.t_chat then
-        if not nop_sendchat then
+function onReceiveRpc(id, bs)
+    if inifile.translate.enable_in then 
+        if id == 93 and inifile.options.t_chat then
+            local color = raknetBitStreamReadInt32(bs)
+            local tlength = raknetBitStreamReadInt32(bs)
+            local text = raknetBitStreamReadString(bs, tlength)
             table.insert(threads, {
-                style = 5,
+                style = 1, 
                 messages = {
-                    {true, text, "out"}
+                    {false, color},
+                    {true, text}
                 }
             })
             return false
-        else
-            nop_sendchat = false
+        elseif id == 61 and inifile.options.t_dialogs then
+            local dialogid = raknetBitStreamReadInt16(bs)
+            local style = raknetBitStreamReadInt8(bs)
+            local tlength = raknetBitStreamReadInt8(bs)
+            local title = raknetBitStreamReadString(bs, tlength)
+            local b1len = raknetBitStreamReadInt8(bs)
+            local b1 = raknetBitStreamReadString(bs, b1len)
+            local b2len = raknetBitStreamReadInt8(bs)
+            local b2 = raknetBitStreamReadString(bs, b2len)
+            local text = raknetBitStreamDecodeString(bs, 4096)
+            table.insert(threads, {
+                style = 2,
+                messages = {
+                    {false, dialogid},
+                    {false, style},
+                    {true, title},
+                    {true, b1},
+                    {true, b2},
+                    {true, text}
+                }
+            })
+            return false
+        elseif id == 36 and inifile.options.t_textlabels then
+            local id = raknetBitStreamReadInt16(bs)
+            local color = raknetBitStreamReadInt32(bs)
+            local position = {x = raknetBitStreamReadFloat(bs), y = raknetBitStreamReadFloat(bs), z = raknetBitStreamReadFloat(bs)}
+            local distance = raknetBitStreamReadFloat(bs)
+            local testLOS = raknetBitStreamReadInt8(bs) ~= 0
+            local pid = raknetBitStreamReadInt16(bs)
+            local vid = raknetBitStreamReadInt16(bs)
+            local text = raknetBitStreamDecodeString(bs, 4096)
+            table.insert(textlabels, {id = id, color = color, position = position, text = text, pid = pid, vid = vid})
+        elseif id == 59 and inifile.options.t_chatbubbles then
+            local playerid = raknetBitStreamReadInt16(bs)
+            local color = raknetBitStreamReadInt32(bs)
+            local distance = raknetBitStreamReadFloat(bs)
+            local duration = raknetBitStreamReadInt32(bs)
+            local tlength = raknetBitStreamReadInt8(bs)
+            table.insert(chatbubbles, {playerid = playerid, color = color, distance = distance, duration = os.clock() + duration/1000, message = message})
+            return false
         end
     end
 end
 
-function sampev.onSendCommand(cmd)
-    if inifile.translate.enable_out and inifile.options.t_chat then
-        if not nop_sendchat then
-            local command, text = cmd:match("(/.-)%s+(.+)")
-            if command and text then
-                table.insert(threads, {
-                    style = 6,
-                    messages = {
-                        {false, command},
-                        {true, text, "out"}
-                    }
-                })
+function onSendRpc(id, bs)
+    if inifile.translate.enable_out then
+        if (id == 101 or id == 50) and inifile.options.t_chat then
+            local tlength = id == 101 and raknetBitStreamReadInt8(bs) or raknetBitStreamReadInt32(bs)
+            local text = raknetBitStreamReadString(bs, tlength)
+            if not nop_sendchat then
+                local command, arg = text:match("(/.-)%s+(.+)")
+                if command and arg then
+                    table.insert(threads, {
+                        style = 6,
+                        messages = {
+                            {false, command},
+                            {true, arg, "out"}
+                        }
+                    })
+                else
+                    table.insert(threads, {
+                        style = 5,
+                        messages = {
+                            {true, text, "out"}
+                        }
+                    })
+                end
                 return false
+            else
+                nop_sendchat = false
             end
-        else
-            nop_sendchat = false
+        elseif id == 62 and inifile.options.t_dialogs and sampGetCurrentDialogType() == DIALOG_STYLE_INPUT then
+            local dialogid = raknetBitStreamReadInt16(bs)
+            local button = raknetBitStreamReadInt8(bs)
+            local list = raknetBitStreamReadInt16(bs)
+            local tlength = raknetBitStreamReadInt8(bs)
+            local input = raknetBitStreamReadString(bs, tlength)
+            table.insert(threads, {
+                style = 7,
+                messages = {
+                    {false, dialogid},
+                    {false, button},
+                    {false, list},
+                    {true, input, "out"}
+                }
+            })
+            return false
         end
-    end
-end
-
-function sampev.onSendDialogResponse(dialogid, button, list, input)
-    if inifile.translate.enable_out and inifile.options.t_dialogs and sampGetCurrentDialogType() == DIALOG_STYLE_INPUT then
-        table.insert(threads, {
-            style = 7,
-            messages = {
-                {false, dialogid},
-                {false, button},
-                {false, list},
-                {true, input, "out"}
-            }
-        })
-        return false
     end
 end
 
