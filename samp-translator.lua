@@ -15,7 +15,6 @@ local ffi = require 'ffi'
 local lfs = require 'lfs'
 local wm = require 'windows.message'
 local vkeys = require 'vkeys'
-local vector3d = require 'vector3d'
 -- additionaly
 local imgui = require 'mimgui'
 local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
