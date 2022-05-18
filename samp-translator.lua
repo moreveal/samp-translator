@@ -98,6 +98,7 @@ function main()
     while not isSampAvailable() do wait(100) end
     sampRegisterChatCommand("translate", function() renderMainWindow[0] = not renderMainWindow[0] end)
     updateScriptLang()
+    
     -- auto-update
     if inifile.options.autoupdate then
         local tempname_script = os.tmpname()
@@ -462,7 +463,7 @@ function updateScriptLang()
             end)
         else update_langs = true end
         while not update_langs do wait(0) end
-        wait(250)
+        wait(400)
         local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
         assert(f, "The language file was not found")
         local content = f:read("*a")
