@@ -1,4 +1,4 @@
-script_version_number(9)
+script_version_number(1)
 script_version("release-1.6")
 script_authors("moreveal")
 script_description("SAMP Translator")
