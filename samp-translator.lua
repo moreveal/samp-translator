@@ -1,4 +1,4 @@
-script_version_number(8)
+script_version_number(9)
 script_version("release-1.6")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -22,7 +22,7 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 local threads, textlabels, chatbubbles = {}, {}, {}
 local phrases = {}
 local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt"}
-local langs_version = 2
+local langs_version = 1
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
 local update_url = "https://github.com/moreveal/samp-translator/raw/main/samp-translator.lua"
@@ -113,7 +113,6 @@ function main()
                         f = io.open(thisScript().path, "w+")
                         f:write(content)
                         f:close()
-                        --sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
                         thisScript():reload()
                     end
                     wait(50)
