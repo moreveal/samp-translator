@@ -1,4 +1,4 @@
-script_version_number(1)
+script_version_number(9)
 script_version("release-1.6")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -22,7 +22,7 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 local threads, textlabels, chatbubbles = {}, {}, {}
 local phrases = {}
 local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt"}
-local langs_version = 1
+local langs_version = 2
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
 local update_url = "https://github.com/moreveal/samp-translator/raw/main/samp-translator.lua"
@@ -462,6 +462,7 @@ function updateScriptLang()
             end)
         else update_langs = true end
         while not update_langs do wait(0) end
+        wait(250)
         local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
         assert(f, "The language file was not found")
         local content = f:read("*a")
