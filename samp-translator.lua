@@ -429,7 +429,11 @@ function onSendRpc(id, bs)
 end
 
 function updateCombo()
-    combo_langs_text = {u8(phrases.L_ENGLISH), u8(phrases.L_RUSSIAN), u8(phrases.L_UKRANIAN), u8(phrases.L_BELARUSIAN), u8(phrases.L_ITALIAN), u8(phrases.L_BULGARIAN), u8(phrases.L_SPANISH), u8(phrases.L_KAZAKH), u8(phrases.L_GERMAN), u8(phrases.L_POLISH), u8(phrases.L_SERBIAN), u8(phrases.L_FRENCH), u8(phrases.L_ROMANIAN), u8(phrases.L_PORTUGUESE)}
+    combo_langs_text = {}
+    for _,v in ipairs(phrases) do
+        if v[1]:find("^L_") then table.insert(combo_langs_text, u8(v[2])) end
+        phrases[v[1]] = v[2]
+    end
     combo_langs = new['const char*'][#combo_langs_text](combo_langs_text)
 end
 -- loading lang-file
@@ -466,9 +470,11 @@ function updateScriptLang()
         wait(400)
         local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
         assert(f, "The language file was not found")
-        local content = f:read("*a")
+        for line in f:lines() do
+            local var, text = line:match("{(.-),%s+\"(.-)\"}")
+            phrases[#phrases + 1] = {var, u8:decode(text)}
+        end
         f:close()
-        for var, text in content:gmatch("{(.-),%s+\"(.-)\"}") do phrases[var] = u8:decode(text) end
         updateCombo()
     end)
 end
