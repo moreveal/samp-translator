@@ -97,7 +97,7 @@ function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
     sampRegisterChatCommand("translate", function() renderMainWindow[0] = not renderMainWindow[0] end)
-
+    updateScriptLang()
     -- auto-update
     if inifile.options.autoupdate then
         local tempname_script = os.tmpname()
@@ -113,7 +113,7 @@ function main()
                         f = io.open(thisScript().path, "w+")
                         f:write(content)
                         f:close()
-                        sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
+                        --sampAddChatMessage("[Translator]: "..u8(phrases.SCRIPT_GUPDATE), 0xCCCCCC)
                         thisScript():reload()
                     end
                     wait(50)
@@ -121,34 +121,8 @@ function main()
                 end)
             end
         end)
-        local function updateLangs()
-            for i = 2, #langs_url do
-                downloadUrlToFile(langs_url[i], main_dir.."languages\\"..langs_url[i]:match(".+/(.+%.lang)"), function(id, status)
-                    if status == 6 then
-                        if i == #langs_url then updated = true end
-                    end
-                end)
-            end
-        end
-        local tempname_lang = os.tmpname()
-        downloadUrlToFile(langs_url[1], tempname_lang, function(id, status)
-            if status == 6 then
-                lua_thread.create(function()
-                    wait(100)
-                    local f = io.open(tempname_lang, "r")
-                    local content = f:read("*a")
-                    wait(100)
-                    f:close()
-                    if tonumber(content) > langs_version then updateLangs() else updated = true end
-                    wait(50)
-                    os.remove(tempname_lang)
-                end)
-            end
-        end)
     else updated = true end
     while not updated do wait(0) end
-    wait(500)
-    updateScriptLang()
 
     lua_thread.create(function()
         while true do
@@ -460,12 +434,42 @@ function updateCombo()
 end
 -- loading lang-file
 function updateScriptLang()
-    local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
-    assert(f, "The language file was not found")
-    local content = f:read("*a")
-    f:close()
-    for var, text in content:gmatch("{(.-),%s+\"(.-)\"}") do phrases[var] = u8:decode(text) end
-    updateCombo()
+    lua_thread.create(function()
+        local update_langs = false
+        if inifile.options.autoupdate then
+            local function updateLangs()
+                for i = 2, #langs_url do
+                    downloadUrlToFile(langs_url[i], main_dir.."languages\\"..langs_url[i]:match(".+/(.+%.lang)"), function(id, status)
+                        if status == 6 then
+                            if i == #langs_url then update_langs = true end
+                        end
+                    end)
+                end
+            end
+            local tempname_lang = os.tmpname()
+            downloadUrlToFile(langs_url[1], tempname_lang, function(id, status)
+                if status == 6 then
+                    lua_thread.create(function()
+                        wait(100)
+                        local f = io.open(tempname_lang, "r")
+                        local content = f:read("*a")
+                        wait(100)
+                        f:close()
+                        if tonumber(content) > langs_version then updateLangs() else update_langs = true end
+                        wait(50)
+                        os.remove(tempname_lang)
+                    end)
+                end
+            end)
+        else update_langs = true end
+        while not update_langs do wait(0) end
+        local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
+        assert(f, "The language file was not found")
+        local content = f:read("*a")
+        f:close()
+        for var, text in content:gmatch("{(.-),%s+\"(.-)\"}") do phrases[var] = u8:decode(text) end
+        updateCombo()
+    end)
 end
 ------------------
 
