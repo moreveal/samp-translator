@@ -26,4 +26,5 @@
 {L_POLISH, "Польский"},
 {L_SERBIAN, "Сербский"},
 {L_FRENCH, "Французский"},
-{L_ROMANIAN, "Румынский"}
+{L_ROMANIAN, "Румынский"},
+{L_PORTUGUESE, "Португальский"}
