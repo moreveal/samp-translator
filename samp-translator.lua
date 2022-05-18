@@ -1,5 +1,5 @@
-script_version_number(7)
-script_version("release-1.5")
+script_version_number(8)
+script_version("release-1.6")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
@@ -21,8 +21,8 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 -- variables
 local threads, textlabels, chatbubbles = {}, {}, {}
 local phrases = {}
-local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro"}
-local langs_version = 1
+local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt"}
+local langs_version = 2
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
 local update_url = "https://github.com/moreveal/samp-translator/raw/main/samp-translator.lua"
@@ -455,7 +455,7 @@ function onSendRpc(id, bs)
 end
 
 function updateCombo()
-    combo_langs_text = {u8(phrases.L_ENGLISH), u8(phrases.L_RUSSIAN), u8(phrases.L_UKRANIAN), u8(phrases.L_BELARUSIAN), u8(phrases.L_ITALIAN), u8(phrases.L_BULGARIAN), u8(phrases.L_SPANISH), u8(phrases.L_KAZAKH), u8(phrases.L_GERMAN), u8(phrases.L_POLISH), u8(phrases.L_SERBIAN), u8(phrases.L_FRENCH), u8(phrases.L_ROMANIAN)}
+    combo_langs_text = {u8(phrases.L_ENGLISH), u8(phrases.L_RUSSIAN), u8(phrases.L_UKRANIAN), u8(phrases.L_BELARUSIAN), u8(phrases.L_ITALIAN), u8(phrases.L_BULGARIAN), u8(phrases.L_SPANISH), u8(phrases.L_KAZAKH), u8(phrases.L_GERMAN), u8(phrases.L_POLISH), u8(phrases.L_SERBIAN), u8(phrases.L_FRENCH), u8(phrases.L_ROMANIAN), u8(phrases.L_PORTUGUESE)}
     combo_langs = new['const char*'][#combo_langs_text](combo_langs_text)
 end
 -- loading lang-file
