@@ -1,5 +1,4 @@
 {NO_CONNECTION, "Connection with the translator is not established"},
-{SCRIPT_GUPDATE, "The update was successfully installed"},
 {AU_STATUS, "Auto-update"},
 {H_AUINFO, "The script will check for updates at startup"},
 {S_STATUS, "Redirect requests through the script server"},
