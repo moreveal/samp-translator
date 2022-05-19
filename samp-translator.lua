@@ -1,5 +1,5 @@
-script_version_number(9)
-script_version("release-1.6")
+script_version_number(10)
+script_version("release-1.7")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
@@ -428,14 +428,6 @@ function onSendRpc(id, bs)
     end
 end
 
-function updateCombo()
-    combo_langs_text = {}
-    for _,v in ipairs(phrases) do
-        if v[1]:find("^L_") then table.insert(combo_langs_text, u8(v[2])) end
-        phrases[v[1]] = v[2]
-    end
-    combo_langs = new['const char*'][#combo_langs_text](combo_langs_text)
-end
 -- loading lang-file
 function updateScriptLang()
     lua_thread.create(function()
@@ -470,12 +462,16 @@ function updateScriptLang()
         wait(400)
         local f = io.open(main_dir.."languages\\"..inifile.options.scriptlang..".lang", "r")
         assert(f, "The language file was not found")
+        combo_langs_text = {}
         for line in f:lines() do
             local var, text = line:match("{(.-),%s+\"(.-)\"}")
-            phrases[#phrases + 1] = {var, u8:decode(text)}
+            phrases[var] = u8:decode(text)
+            if var:find("^L_") then
+                table.insert(combo_langs_text, text)
+            end
         end
         f:close()
-        updateCombo()
+        combo_langs = new['const char*'][#combo_langs_text](combo_langs_text)
     end)
 end
 ------------------
@@ -546,7 +542,6 @@ imguiFrame[1] = imgui.OnFrame(
             inifile.options.scriptlang = combo_scriptlangs_text[combo_scriptlangs_index[0] + 1]
             inicfg.save(inifile, cpath)
             updateScriptLang()
-            updateCombo()
         end
         imgui.PopItemWidth()
         imgui.Separator()
