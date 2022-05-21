@@ -31,7 +31,7 @@ local langs_url = {
     "https://github.com/moreveal/samp-translator/raw/main/languages/Russian.lang",
     "https://github.com/moreveal/samp-translator/raw/main/languages/Ukranian.lang"
 }
-local script_server = "http://d952488j.beget.tech/translate.php" -- the address used to get the current API and redirect requests
+local script_server = "https://s218767.h1n.ru/translate.php" -- the address used to get the current API and redirect requests
 ------------
 
 if not doesDirectoryExist(main_dir.."languages") then createDirectory(main_dir.."languages") end
