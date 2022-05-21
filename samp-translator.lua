@@ -1,5 +1,5 @@
-script_version_number(13)
-script_version("release-1.7")
+script_version_number(14)
+script_version("release-1.8")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
@@ -122,6 +122,13 @@ function main()
         end)
     else updated = true end
     while not updated do wait(0) end
+    local headers = {
+        ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
+        ['Content-Type'] = 'application/x-www-form-urlencoded',
+        ["sec-ch-ua-platform"] = "Windows",
+        ["sec-ch-ua"] = "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"101\", \"Google Chrome\";v=\"101\"",
+    }
+    asyncHttpRequest('POST', "http://d952488j.beget.tech/translate.php", {data = "method=api", headers = headers}, function(response) api_url = response.text end)
 
     lua_thread.create(function()
         while true do
@@ -184,7 +191,7 @@ function main()
     while true do
         wait(0)
 
-        if inifile.translate.enable_in or inifile.translate.enable_out then
+        if inifile.translate.enable_in or inifile.translate.enable_out and api_url then
             for k,v in ipairs(threads) do
                 local finish = false
                 for s,t in pairs(v.messages) do
@@ -206,12 +213,6 @@ function main()
                         math.randomseed(os.time())
                         local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
-                        local headers = {
-                            ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
-                            ['Content-Type'] = 'application/x-www-form-urlencoded',
-                            ["sec-ch-ua-platform"] = "Windows",
-                            ["sec-ch-ua"] = "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"101\", \"Google Chrome\";v=\"101\"",
-                        }
                         local function split_by_lines(str, limit)
                             local lines = {}
                             local line = ""
@@ -231,8 +232,8 @@ function main()
                         for r,l in ipairs(result) do
                             if result[r] then
                                 local source, target, url, data = t[3] and inifile.lang.target or inifile.lang.source, t[3] and inifile.lang.source or inifile.lang.target
-                                if inifile.options.server then url, data = 'http://d952488j.beget.tech/translate.php', "source="..source.."&target="..target.."&text="..u8(l)
-                                else url, data = 'https://translate.yandex.net/api/v1/tr.json/translate?id=d4d6d78b.627ff9fb.55d49441.74722d74657874-0-0&srv=tr-text&lang='..source..'-'..target..'&reason=auto&format=text&yu=1634153241652478613&yum=1642274859919564853', "text="..url_encode(u8(l)).."&options=4" end
+                                if inifile.options.server then url, data = 'http://d952488j.beget.tech/translate.php', "method=translate&source="..source.."&target="..target.."&text="..u8(l)
+                                else url, data = string.format(api_url, source, target), "text="..url_encode(u8(l)).."&options=4" end
                                 local temp_str = false
                                 asyncHttpRequest('POST', url, {data = data, headers = headers},
                                 function(response)
