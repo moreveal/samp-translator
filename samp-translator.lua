@@ -1,11 +1,10 @@
-script_version_number(10)
+script_version_number(11)
 script_version("release-1.7")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
 script_properties("work-in-pause")
 
-require 'lib.sampfuncs'
 -- built-in
 local encoding = require 'encoding'
 encoding.default = 'CP1251'
@@ -374,7 +373,8 @@ function onReceiveRpc(id, bs)
             local color = raknetBitStreamReadInt32(bs)
             local distance = raknetBitStreamReadFloat(bs)
             local duration = raknetBitStreamReadInt32(bs)
-            local tlength = raknetBitStreamReadInt8(bs)
+            local mlength = raknetBitStreamReadInt8(bs)
+            local message = raknetBitStreamReadString(bs, mlength)
             table.insert(chatbubbles, {playerid = playerid, color = color, distance = distance, duration = os.clock() + duration/1000, message = message})
             return false
         end
@@ -408,7 +408,7 @@ function onSendRpc(id, bs)
             else
                 nop_sendchat = false
             end
-        elseif id == 62 and inifile.options.t_dialogs and sampGetCurrentDialogType() == DIALOG_STYLE_INPUT then
+        elseif id == 62 and inifile.options.t_dialogs and sampGetCurrentDialogType() == 1 then
             local dialogid = raknetBitStreamReadInt16(bs)
             local button = raknetBitStreamReadInt8(bs)
             local list = raknetBitStreamReadInt16(bs)
