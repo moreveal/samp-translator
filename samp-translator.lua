@@ -1,4 +1,4 @@
-script_version_number(12)
+script_version_number(13)
 script_version("release-1.7")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -189,7 +189,7 @@ function main()
                 local finish = false
                 for s,t in pairs(v.messages) do
                     except = {}
-                    if t[1] and t[2]:len() > 0 and t[2]:find("%S") then -- if need to translate
+                    if t[1] and t[2]:len() > 0 and t[2]:find("%S") and t[2]:find("%D") then -- if need to translate
                         -- fix translation of commands
                         for word in t[2]:gmatch("[^%s]+") do
                             word = word:match("^(/%w+)")
@@ -387,15 +387,18 @@ function onSendRpc(id, bs)
             local tlength = id == 101 and raknetBitStreamReadInt8(bs) or raknetBitStreamReadInt32(bs)
             local text = raknetBitStreamReadString(bs, tlength)
             if not nop_sendchat then
-                local command, arg = text:match("(/.-)%s+(.+)")
-                if command and arg then
-                    table.insert(threads, {
-                        style = 6,
-                        messages = {
-                            {false, command},
-                            {true, arg, "out"}
-                        }
-                    })
+                if text:find("^/") then
+                    local command, arg = text:match("(/.-)%s+(.+)")
+                    if command and arg then
+                        table.insert(threads, {
+                            style = 6,
+                            messages = {
+                                {false, command},
+                                {true, arg, "out"}
+                            }
+                        })
+                        return false
+                    end
                 else
                     table.insert(threads, {
                         style = 5,
@@ -403,8 +406,8 @@ function onSendRpc(id, bs)
                             {true, text, "out"}
                         }
                     })
+                    return false
                 end
-                return false
             else
                 nop_sendchat = false
             end
