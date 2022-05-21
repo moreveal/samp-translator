@@ -1,4 +1,4 @@
-script_version_number(14)
+script_version_number(15)
 script_version("release-1.8")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -31,6 +31,7 @@ local langs_url = {
     "https://github.com/moreveal/samp-translator/raw/main/languages/Russian.lang",
     "https://github.com/moreveal/samp-translator/raw/main/languages/Ukranian.lang"
 }
+local script_server = "https://moreveal.site/translate.php" -- the address used to get the current API and redirect requests
 ------------
 
 if not doesDirectoryExist(main_dir.."languages") then createDirectory(main_dir.."languages") end
@@ -128,7 +129,15 @@ function main()
         ["sec-ch-ua-platform"] = "Windows",
         ["sec-ch-ua"] = "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"101\", \"Google Chrome\";v=\"101\"",
     }
-    asyncHttpRequest('POST', "http://d952488j.beget.tech/translate.php", {data = "method=api", headers = headers}, function(response) api_url = response.text end)
+    asyncHttpRequest('POST', script_server, {data = "method=api", headers = headers}, function(response) api_url = response.text end)
+    local getapitime = os.clock()
+    while not api_url do
+        wait(0)
+        if os.clock() - getapitime >= 3 then 
+            sampAddChatMessage("[Translator]: Couldn't get an up-to-date Translator API link. Try again later.", 0xCCCCCC)
+            thisScript():unload()
+        end
+    end
 
     lua_thread.create(function()
         while true do
@@ -232,7 +241,7 @@ function main()
                         for r,l in ipairs(result) do
                             if result[r] then
                                 local source, target, url, data = t[3] and inifile.lang.target or inifile.lang.source, t[3] and inifile.lang.source or inifile.lang.target
-                                if inifile.options.server then url, data = 'http://d952488j.beget.tech/translate.php', "method=translate&source="..source.."&target="..target.."&text="..u8(l)
+                                if inifile.options.server then url, data = script_server, "method=translate&source="..source.."&target="..target.."&text="..u8(l)
                                 else url, data = string.format(api_url, source, target), "text="..url_encode(u8(l)).."&options=4" end
                                 local temp_str = false
                                 asyncHttpRequest('POST', url, {data = data, headers = headers},
