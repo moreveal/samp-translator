@@ -26,4 +26,6 @@
 {L_SERBIAN, "Сербська"},
 {L_FRENCH, "Французька"},
 {L_ROMANIAN, "Румунська"},
-{L_PORTUGUESE, "Португальська"}
+{L_PORTUGUESE, "Португальська"},
+{L_LITHUANIAN, "Литовська"},
+{L_TURKISH, "Турецька"}
