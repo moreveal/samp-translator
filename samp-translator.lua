@@ -1,5 +1,5 @@
-script_version_number(17)
-script_version("release-1.8")
+script_version_number(18)
+script_version("release-1.9")
 script_authors("moreveal")
 script_description("SAMP Translator")
 script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
@@ -21,7 +21,7 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 -- variables
 local threads, textlabels, chatbubbles = {}, {}, {}
 local phrases = {}
-local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt"}
+local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt", "lt", "tr"}
 local langs_version = 2
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
@@ -205,23 +205,28 @@ function main()
             for k,v in ipairs(threads) do
                 local finish = false
                 for s,t in pairs(v.messages) do
-                    except = {}
+                    local except = {}
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") and t[2]:find("%D") then -- if need to translate
                         -- fix translation of commands
+                        math.randomseed(os.time() - os.clock())
                         for word in t[2]:gmatch("[^%s]+") do
-                            word = word:match("^(/%w+)")
-                            if word then
-                                local cmd = word:match("/(%w+)")
+                            if word:find("^/") or word:find("^%(/") then
+                                local cmd = false
+                                for _, pattern in ipairs({"(%(/%w+%)%w+)", "^(/%w+%(%w+%))", "^(/%(%w+%)%w+)", "^(/%w+)"}) do
+                                    if not cmd then cmd = word:match(pattern) end
+                                end
                                 if cmd then
-                                    local fixcmd = "/".."2x"..cmd.."2x"
-                                    t[2] = t[2]:gsub(word, fixcmd)
-                                    table.insert(except, {old = word, new = fixcmd})
+                                    math.randomseed(math.random(0,9999))
+                                    local fixcmd = "0_"..math.random(0,99999)
+                                    local cmd = cmd:gsub("%p", "%%%1")
+                                    t[2] = t[2]:gsub(cmd, fixcmd, 1)
+                                    table.insert(except, {old = cmd, new = fixcmd})
                                 end
                             end
                         end
 
                         math.randomseed(os.time())
-                        local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
+                        local tab_replace = "0_"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
                         local function split_by_lines(str, limit)
                             local lines = {}
@@ -256,8 +261,7 @@ function main()
 
                                             -- fix translation of commands
                                             if result_text:find("%s/%s") then result_text = result_text:gsub("%s/%s", "") end
-                                            for _,v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
-                                            if result_text:find("2x.-2x") then result_text = result_text:gsub("2x", "") end
+                                            for _, v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
 
                                             temp_str = u8:decode(result_text)
                                             if s == #v.messages then finish = true end
