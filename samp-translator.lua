@@ -1,4 +1,4 @@
-script_version_number(16)
+script_version_number(17)
 script_version("release-1.8")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -6,6 +6,7 @@ script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
 script_properties("work-in-pause")
 
 -- built-in
+require 'lib.sampfuncs'
 local encoding = require 'encoding'
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
@@ -421,7 +422,7 @@ function onSendRpc(id, bs)
             else
                 nop_sendchat = false
             end
-        elseif id == 62 and inifile.options.t_dialogs and sampGetCurrentDialogType() == 1 then
+        elseif id == 62 and inifile.options.t_dialogs and sampGetCurrentDialogType() == DIALOG_STYLE_INPUT then
             local dialogid = raknetBitStreamReadInt16(bs)
             local button = raknetBitStreamReadInt8(bs)
             local list = raknetBitStreamReadInt16(bs)
