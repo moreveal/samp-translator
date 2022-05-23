@@ -1,4 +1,4 @@
-script_version_number(18)
+script_version_number(19)
 script_version("release-1.9")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -36,12 +36,17 @@ local script_server = "https://s218767.h1n.ru/translate.php" -- the address used
 ------------
 
 if not doesDirectoryExist(main_dir.."languages") then createDirectory(main_dir.."languages") end
-cpath = main_dir.."config.ini"
-if not doesFileExist(cpath) then io.open(cpath, "w"):close() end
+local dir = {
+    cpath = main_dir.."config.ini",
+    --dpath = main_dir.."dialog_list.json"
+}
+for k,v in pairs(dir) do 
+    if not doesFileExist(v) then io.open(v, "w"):close() end 
+end
 local defaultIni = {
     lang = {
-        source = "en", -- server language
-        target = "ru", -- desired language
+        source_out = "en", -- server language
+        target_out = "ru", -- desired language
     },
     translate = {
         enable_out = false, -- status of translation incoming messages
@@ -57,7 +62,7 @@ local defaultIni = {
         t_textlabels = true, -- textlabels translation
     }
 }
-inifile = inicfg.load(defaultIni, cpath)
+inifile = inicfg.load(defaultIni, dir.cpath)
 -- imgui variables
 local imguiFrame = {}
 local renderMainWindow = new.bool()
@@ -97,6 +102,7 @@ end
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
+    serverip = string.format("%s:%s", sampGetCurrentServerAddress())
     sampRegisterChatCommand("translate", function() renderMainWindow[0] = not renderMainWindow[0] end)
     updateScriptLang()
     
@@ -208,7 +214,7 @@ function main()
                     local except = {}
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") and t[2]:find("%D") then -- if need to translate
                         -- fix translation of commands
-                        math.randomseed(os.time() - os.clock())
+                        local i = 10000
                         for word in t[2]:gmatch("[^%s]+") do
                             if word:find("^/") or word:find("^%(/") then
                                 local cmd = false
@@ -216,8 +222,8 @@ function main()
                                     if not cmd then cmd = word:match(pattern) end
                                 end
                                 if cmd then
-                                    math.randomseed(math.random(0,9999))
-                                    local fixcmd = "0_"..math.random(0,99999)
+                                    i = i + 1
+                                    local fixcmd = "0_"..i
                                     local cmd = cmd:gsub("%p", "%%%1")
                                     t[2] = t[2]:gsub(cmd, fixcmd, 1)
                                     table.insert(except, {old = cmd, new = fixcmd})
@@ -243,7 +249,7 @@ function main()
                             table.insert(lines, line:match("^%s*(.-)%s*$"))
                             return lines
                         end
-                        local result = split_by_lines(t[2], 650)
+                        local result = split_by_lines(t[2], 630)
                         for r,l in ipairs(result) do
                             if result[r] then
                                 local source, target, url, data = t[3] and inifile.lang.target or inifile.lang.source, t[3] and inifile.lang.source or inifile.lang.target
@@ -361,6 +367,7 @@ function onReceiveRpc(id, bs)
             local b2len = raknetBitStreamReadInt8(bs)
             local b2 = raknetBitStreamReadString(bs, b2len)
             local text = raknetBitStreamDecodeString(bs, 4096)
+
             table.insert(threads, {
                 style = 2,
                 messages = {
@@ -496,6 +503,7 @@ end
 
 imgui.OnInitialize(function()
     local config = imgui.ImFontConfig()
+    imgui.GetIO().IniFilename = nil
     config.MergeMode = true
 
     imgui.SwitchContext()
@@ -546,19 +554,19 @@ imguiFrame[1] = imgui.OnFrame(
                 imgui.EndTooltip()
             end
         end
-        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2 + sizeX * 0.2777, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
         imgui.SetNextWindowSize(imgui.ImVec2(380, 240), imgui.Cond.FirstUseEver)
         imgui.Begin("SAMP Translator", renderMainWindow, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
         if imgui.Checkbox(u8(phrases.AU_STATUS), cb_autoupdate) then
             inifile.options.autoupdate = not inifile.options.autoupdate
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imguiHint(phrases.H_AUINFO)
         imgui.SameLine(280)
         imgui.PushItemWidth(95)
         if imgui.Combo("##ScriptLang", combo_scriptlangs_index, combo_scriptlangs, #combo_scriptlangs_text) then
             inifile.options.scriptlang = combo_scriptlangs_text[combo_scriptlangs_index[0] + 1]
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
             updateScriptLang()
         end
         imgui.PopItemWidth()
@@ -566,49 +574,49 @@ imguiFrame[1] = imgui.OnFrame(
         if imgui.Checkbox(u8(phrases.TRANSLATE_MES_OUT), cb_enable_out) then
             inifile.translate.enable_out = not inifile.translate.enable_out
             if inifile.translate.enable_out then threads = {} end
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imguiHint(phrases.H_TMO)
         if imgui.Checkbox(u8(phrases.TRANSLATE_MES_IN), cb_enable_in) then
             inifile.translate.enable_in = not inifile.translate.enable_in
             if inifile.translate.enable_in then threads = {} end
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imguiHint(phrases.H_TMI)
         imgui.Separator()
         imgui.PushItemWidth(235)
         if imgui.Combo(u8(phrases.CB_SOURCE), combo_langs_sindex, combo_langs, #combo_langs_text) then
             inifile.lang.source = langs_association[combo_langs_sindex[0] + 1]
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         if imgui.Combo(u8(phrases.CB_TARGET), combo_langs_tindex, combo_langs, #combo_langs_text) then
             inifile.lang.target = langs_association[combo_langs_tindex[0] + 1]
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imgui.Separator()
         if imgui.Checkbox(u8(phrases.T_CHAT), cb_chat) then
             inifile.options.t_chat = not inifile.options.t_chat
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imgui.SameLine(224)
         if imgui.Checkbox(u8(phrases.T_DIALOGS), cb_dialogs) then
             inifile.options.t_dialogs = not inifile.options.t_dialogs
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         if imgui.Checkbox(u8(phrases.T_CHATBUBBLES), cb_chatbubbles) then
             inifile.options.t_chatbubbles = not inifile.options.t_chatbubbles
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imgui.SameLine(224)
         if imgui.Checkbox(u8(phrases.T_TEXTLABELS), cb_textlabels) then
             inifile.options.t_textlabels = not inifile.options.t_textlabels
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imgui.PopItemWidth()
         imgui.Separator()
         if imgui.Checkbox(u8(phrases.S_STATUS), cb_scriptserver) then
             inifile.options.server = not inifile.options.server
-            inicfg.save(inifile, cpath)
+            inicfg.save(inifile, dir.cpath)
         end
         imguiHint(phrases.H_SINFO)
         imgui.End()
@@ -664,11 +672,21 @@ function asyncHttpRequest(method, url, args, resolve, reject)
     end)
 end
 
-function char_to_hex(str)
-    return string.format("%%%02X", string.byte(str))
-end
 function url_encode(str)
-    local str = string.gsub(str, "\\", "\\")
-    local str = string.gsub(str, "([^%w])", char_to_hex)
+    if str then
+       str = str:gsub("\n", "\r\n")
+       str = str:gsub("([^%w %-%_%.%~])", function(c)
+          return ("%%%02X"):format(string.byte(c))
+       end)
+       str = str:gsub(" ", "+")
+    end
+    return str	
+ end
+function url_decode(str)
+    str = str:gsub("+", " ")
+    str = str:gsub("%%(%x%x)", function(h)
+       return string.char(tonumber(h,16))
+    end)
+    str = str:gsub("\r\n", "\n")
     return str
-end
+ end
