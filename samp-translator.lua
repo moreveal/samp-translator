@@ -1,4 +1,4 @@
-script_version_number(19)
+script_version_number(20)
 script_version("release-1.9")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -136,15 +136,10 @@ function main()
         ["sec-ch-ua-platform"] = "Windows",
         ["sec-ch-ua"] = "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"101\", \"Google Chrome\";v=\"101\"",
     }
-    asyncHttpRequest('POST', script_server, {data = "method=api", headers = headers}, function(response) api_url = response.text end)
-    local getapitime = os.clock()
-    while not api_url do
-        wait(0)
-        if os.clock() - getapitime >= 3 then 
-            sampAddChatMessage("[Translator]: Couldn't get an up-to-date Translator API link. Try again later.", 0xCCCCCC)
-            thisScript():unload()
-        end
-    end
+    asyncHttpRequest('POST', script_server, {data = "method=api", headers = headers}, 
+    function(response) api_url = response.text end,
+    function(err) sampAddChatMessage("[Translator]: Couldn't get an up-to-date Translator API link. Try again later.", 0xCCCCCC) thisScript():unload() end)
+    while not api_url do wait(0) end
 
     lua_thread.create(function()
         while true do
