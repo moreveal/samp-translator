@@ -28,4 +28,5 @@
 {L_ROMANIAN, "Romanian"},
 {L_PORTUGUESE, "Portuguese"},
 {L_LITHUANIAN, "Lithuanian"},
-{L_TURKISH, "Turkish"}
+{L_TURKISH, "Turkish"},
+{L_INDONESIAN, "Indonesian"}
