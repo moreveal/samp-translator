@@ -1,4 +1,4 @@
-script_version_number(21)
+script_version_number(22)
 script_version("release-1.9")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -262,7 +262,7 @@ function main()
 
                                             -- fix translation of commands
                                             if result_text:find("%s/%s") then result_text = result_text:gsub("%s/%s", "") end
-                                            for _, v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
+                                            for _, v in ipairs(except) do result_text = replaceWord(result_text, v.new, v.old) end
 
                                             temp_str = u8:decode(result_text)
                                             if s == #v.messages then finish = true end
@@ -684,4 +684,8 @@ function url_decode(str)
     end)
     str = str:gsub("\r\n", "\n")
     return str
- end
+end
+
+function replaceWord(str, substr, replaceTo)
+    return str:gsub("(%S?"..substr.."%S?)", function(a) return #a == #substr and replaceTo or a end)
+end
