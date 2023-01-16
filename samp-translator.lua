@@ -1,4 +1,4 @@
-script_version_number(22)
+script_version_number(17)
 script_version("release-1.9")
 script_authors("moreveal")
 script_description("SAMP Translator")
@@ -6,7 +6,6 @@ script_dependencies("sampfuncs, mimgui, lfs, effil/requests")
 script_properties("work-in-pause")
 
 -- built-in
-require 'lib.sampfuncs'
 local encoding = require 'encoding'
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
@@ -21,8 +20,8 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 -- variables
 local threads, textlabels, chatbubbles = {}, {}, {}
 local phrases = {}
-local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt", "lt", "tr", "id"}
-local langs_version = 4
+local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt"}
+local langs_version = 2
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
 local update_url = "https://github.com/moreveal/samp-translator/raw/main/samp-translator.lua"
@@ -36,17 +35,12 @@ local script_server = "https://s218767.h1n.ru/translate.php" -- the address used
 ------------
 
 if not doesDirectoryExist(main_dir.."languages") then createDirectory(main_dir.."languages") end
-local dir = {
-    cpath = main_dir.."config.ini",
-    --dpath = main_dir.."dialog_list.json"
-}
-for k,v in pairs(dir) do 
-    if not doesFileExist(v) then io.open(v, "w"):close() end 
-end
+cpath = main_dir.."config.ini"
+if not doesFileExist(cpath) then io.open(cpath, "w"):close() end
 local defaultIni = {
     lang = {
-        source_out = "en", -- server language
-        target_out = "ru", -- desired language
+        source = "en", -- server language
+        target = "ru", -- desired language
     },
     translate = {
         enable_out = false, -- status of translation incoming messages
@@ -62,7 +56,7 @@ local defaultIni = {
         t_textlabels = true, -- textlabels translation
     }
 }
-inifile = inicfg.load(defaultIni, dir.cpath)
+inifile = inicfg.load(defaultIni, cpath)
 -- imgui variables
 local imguiFrame = {}
 local renderMainWindow = new.bool()
@@ -102,7 +96,6 @@ end
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
-    serverip = string.format("%s:%s", sampGetCurrentServerAddress())
     sampRegisterChatCommand("translate", function() renderMainWindow[0] = not renderMainWindow[0] end)
     updateScriptLang()
     
@@ -136,10 +129,15 @@ function main()
         ["sec-ch-ua-platform"] = "Windows",
         ["sec-ch-ua"] = "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"101\", \"Google Chrome\";v=\"101\"",
     }
-    asyncHttpRequest('POST', script_server, {data = "method=api", headers = headers}, 
-    function(response) api_url = response.text end,
-    function(err) sampAddChatMessage("[Translator]: Couldn't get an up-to-date Translator API link. Try again later.", 0xCCCCCC) thisScript():unload() end)
-    while not api_url do wait(0) end
+    asyncHttpRequest('POST', script_server, {data = "method=api", headers = headers}, function(response) api_url = response.text end)
+    local getapitime = os.clock()
+    while not api_url do
+        wait(0)
+        if os.clock() - getapitime >= 3 then 
+            sampAddChatMessage("[Translator]: Couldn't get an up-to-date Translator API link. Try again later.", 0xCCCCCC)
+            thisScript():unload()
+        end
+    end
 
     lua_thread.create(function()
         while true do
@@ -206,28 +204,23 @@ function main()
             for k,v in ipairs(threads) do
                 local finish = false
                 for s,t in pairs(v.messages) do
-                    local except = {}
+                    except = {}
                     if t[1] and t[2]:len() > 0 and t[2]:find("%S") and t[2]:find("%D") then -- if need to translate
                         -- fix translation of commands
-                        local i = 10000
                         for word in t[2]:gmatch("[^%s]+") do
-                            if word:find("^/") or word:find("^%(/") then
-                                local cmd = false
-                                for _, pattern in ipairs({"(%(/%w+%)%w+)", "^(/%w+%(%w+%))", "^(/%(%w+%)%w+)", "^(/%w+)"}) do
-                                    if not cmd then cmd = word:match(pattern) end
-                                end
+                            word = word:match("^(/%w+)")
+                            if word then
+                                local cmd = word:match("/(%w+)")
                                 if cmd then
-                                    i = i + 1
-                                    local fixcmd = "0_"..i
-                                    local cmd = cmd:gsub("%p", "%%%1")
-                                    t[2] = t[2]:gsub(cmd, fixcmd, 1)
-                                    table.insert(except, {old = cmd, new = fixcmd})
+                                    local fixcmd = "/".."2x"..cmd.."2x"
+                                    t[2] = t[2]:gsub(word, fixcmd)
+                                    table.insert(except, {old = word, new = fixcmd})
                                 end
                             end
                         end
 
                         math.randomseed(os.time())
-                        local tab_replace = "0_"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
+                        local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
                         if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
                         local function split_by_lines(str, limit)
                             local lines = {}
@@ -244,7 +237,7 @@ function main()
                             table.insert(lines, line:match("^%s*(.-)%s*$"))
                             return lines
                         end
-                        local result = split_by_lines(t[2], 630)
+                        local result = split_by_lines(t[2], 650)
                         for r,l in ipairs(result) do
                             if result[r] then
                                 local source, target, url, data = t[3] and inifile.lang.target or inifile.lang.source, t[3] and inifile.lang.source or inifile.lang.target
@@ -262,7 +255,8 @@ function main()
 
                                             -- fix translation of commands
                                             if result_text:find("%s/%s") then result_text = result_text:gsub("%s/%s", "") end
-                                            for _, v in ipairs(except) do result_text = replaceWord(result_text, v.new, v.old) end
+                                            for _,v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
+                                            if result_text:find("2x.-2x") then result_text = result_text:gsub("2x", "") end
 
                                             temp_str = u8:decode(result_text)
                                             if s == #v.messages then finish = true end
@@ -362,7 +356,6 @@ function onReceiveRpc(id, bs)
             local b2len = raknetBitStreamReadInt8(bs)
             local b2 = raknetBitStreamReadString(bs, b2len)
             local text = raknetBitStreamDecodeString(bs, 4096)
-
             table.insert(threads, {
                 style = 2,
                 messages = {
@@ -428,7 +421,7 @@ function onSendRpc(id, bs)
             else
                 nop_sendchat = false
             end
-        elseif id == 62 and inifile.options.t_dialogs and sampGetCurrentDialogType() == DIALOG_STYLE_INPUT then
+        elseif id == 62 and inifile.options.t_dialogs and sampGetCurrentDialogType() == 1 then
             local dialogid = raknetBitStreamReadInt16(bs)
             local button = raknetBitStreamReadInt8(bs)
             local list = raknetBitStreamReadInt16(bs)
@@ -498,7 +491,6 @@ end
 
 imgui.OnInitialize(function()
     local config = imgui.ImFontConfig()
-    imgui.GetIO().IniFilename = nil
     config.MergeMode = true
 
     imgui.SwitchContext()
@@ -549,19 +541,19 @@ imguiFrame[1] = imgui.OnFrame(
                 imgui.EndTooltip()
             end
         end
-        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2 + sizeX * 0.2777, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
         imgui.SetNextWindowSize(imgui.ImVec2(380, 240), imgui.Cond.FirstUseEver)
         imgui.Begin("SAMP Translator", renderMainWindow, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
         if imgui.Checkbox(u8(phrases.AU_STATUS), cb_autoupdate) then
             inifile.options.autoupdate = not inifile.options.autoupdate
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imguiHint(phrases.H_AUINFO)
         imgui.SameLine(280)
         imgui.PushItemWidth(95)
         if imgui.Combo("##ScriptLang", combo_scriptlangs_index, combo_scriptlangs, #combo_scriptlangs_text) then
             inifile.options.scriptlang = combo_scriptlangs_text[combo_scriptlangs_index[0] + 1]
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
             updateScriptLang()
         end
         imgui.PopItemWidth()
@@ -569,54 +561,72 @@ imguiFrame[1] = imgui.OnFrame(
         if imgui.Checkbox(u8(phrases.TRANSLATE_MES_OUT), cb_enable_out) then
             inifile.translate.enable_out = not inifile.translate.enable_out
             if inifile.translate.enable_out then threads = {} end
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imguiHint(phrases.H_TMO)
         if imgui.Checkbox(u8(phrases.TRANSLATE_MES_IN), cb_enable_in) then
             inifile.translate.enable_in = not inifile.translate.enable_in
             if inifile.translate.enable_in then threads = {} end
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imguiHint(phrases.H_TMI)
         imgui.Separator()
         imgui.PushItemWidth(235)
         if imgui.Combo(u8(phrases.CB_SOURCE), combo_langs_sindex, combo_langs, #combo_langs_text) then
+            if combo_langs_sindex[0] == combo_langs_tindex[0] then
+                inifile.lang.target = inifile.lang.source
+                combo_langs_tindex[0] = getComboIndexByLang(inifile.lang.source)
+            end
             inifile.lang.source = langs_association[combo_langs_sindex[0] + 1]
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         if imgui.Combo(u8(phrases.CB_TARGET), combo_langs_tindex, combo_langs, #combo_langs_text) then
+            if combo_langs_tindex[0] == combo_langs_sindex[0] then
+                inifile.lang.source = inifile.lang.target
+                combo_langs_sindex[0] = getComboIndexByLang(inifile.lang.target)
+            end
             inifile.lang.target = langs_association[combo_langs_tindex[0] + 1]
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imgui.Separator()
         if imgui.Checkbox(u8(phrases.T_CHAT), cb_chat) then
             inifile.options.t_chat = not inifile.options.t_chat
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imgui.SameLine(224)
         if imgui.Checkbox(u8(phrases.T_DIALOGS), cb_dialogs) then
             inifile.options.t_dialogs = not inifile.options.t_dialogs
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         if imgui.Checkbox(u8(phrases.T_CHATBUBBLES), cb_chatbubbles) then
             inifile.options.t_chatbubbles = not inifile.options.t_chatbubbles
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imgui.SameLine(224)
         if imgui.Checkbox(u8(phrases.T_TEXTLABELS), cb_textlabels) then
             inifile.options.t_textlabels = not inifile.options.t_textlabels
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imgui.PopItemWidth()
         imgui.Separator()
         if imgui.Checkbox(u8(phrases.S_STATUS), cb_scriptserver) then
             inifile.options.server = not inifile.options.server
-            inicfg.save(inifile, dir.cpath)
+            inicfg.save(inifile, cpath)
         end
         imguiHint(phrases.H_SINFO)
         imgui.End()
     end
 )
+
+function getComboIndexByLang(language)
+    for k,v in ipairs(langs_association) do
+        if language == v then
+            return k - 1
+        end
+    end
+    return 0
+end
+
 addEventHandler('onWindowMessage', function(msg, wparam, lparam)
     if msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN then
         if wparam == 27 and not sampIsChatInputActive() and not sampIsDialogActive() then -- escape button
@@ -667,25 +677,11 @@ function asyncHttpRequest(method, url, args, resolve, reject)
     end)
 end
 
-function url_encode(str)
-    if str then
-       str = str:gsub("\n", "\r\n")
-       str = str:gsub("([^%w %-%_%.%~])", function(c)
-          return ("%%%02X"):format(string.byte(c))
-       end)
-       str = str:gsub(" ", "+")
-    end
-    return str	
- end
-function url_decode(str)
-    str = str:gsub("+", " ")
-    str = str:gsub("%%(%x%x)", function(h)
-       return string.char(tonumber(h,16))
-    end)
-    str = str:gsub("\r\n", "\n")
-    return str
+function char_to_hex(str)
+    return string.format("%%%02X", string.byte(str))
 end
-
-function replaceWord(str, substr, replaceTo)
-    return str:gsub("(%S?"..substr.."%S?)", function(a) return #a == #substr and replaceTo or a end)
+function url_encode(str)
+    local str = string.gsub(str, "\\", "\\")
+    local str = string.gsub(str, "([^%w])", char_to_hex)
+    return str
 end
