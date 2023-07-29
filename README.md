@@ -1,4 +1,4 @@
-# SAMP Translator Mod
+# SAMP Translator
 
 ![SAMP Translator Logo](https://www.blast.hk/attachments/148318/)
 
