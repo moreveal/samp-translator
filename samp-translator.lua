@@ -556,6 +556,18 @@ imgui.OnInitialize(function()
     style.Colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
 end)
 
+local function getComboIndexFromLang(lang)
+    for index, current_lang in ipairs(langs_association) do
+        if current_lang == lang then
+            return index - 1
+        end
+    end
+end
+
+local function getLangFromComboIndex(index)
+    return langs_association[index + 1]
+end
+
 imguiFrame[1] = imgui.OnFrame(
     function() return renderMainWindow[0] and not isPauseMenuActive() end,
     function(player)
@@ -600,11 +612,21 @@ imguiFrame[1] = imgui.OnFrame(
         imgui.Separator()
         imgui.PushItemWidth(235)
         if imgui.Combo(u8(phrases.CB_SOURCE), combo_langs_sindex, combo_langs, #combo_langs_text) then
-            inifile.lang.source = langs_association[combo_langs_sindex[0] + 1]
+            if combo_langs_sindex[0] == combo_langs_tindex[0] then
+                combo_langs_sindex[0], combo_langs_tindex[0] = getComboIndexFromLang(inifile.lang.target), getComboIndexFromLang(inifile.lang.source)
+            end
+            inifile.lang.source = getLangFromComboIndex(combo_langs_sindex[0])
+            inifile.lang.target = getLangFromComboIndex(combo_langs_tindex[0])
+
             inicfg.save(inifile, cpath)
         end
         if imgui.Combo(u8(phrases.CB_TARGET), combo_langs_tindex, combo_langs, #combo_langs_text) then
-            inifile.lang.target = langs_association[combo_langs_tindex[0] + 1]
+            if combo_langs_sindex[0] == combo_langs_tindex[0] then
+                combo_langs_sindex[0], combo_langs_tindex[0] = getComboIndexFromLang(inifile.lang.target), getComboIndexFromLang(inifile.lang.source)
+            end
+            inifile.lang.source = getLangFromComboIndex(combo_langs_sindex[0])
+            inifile.lang.target = getLangFromComboIndex(combo_langs_tindex[0])
+
             inicfg.save(inifile, cpath)
         end
         imgui.Separator()
