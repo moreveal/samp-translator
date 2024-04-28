@@ -30,7 +30,7 @@ SAMP Translator is an in-game modification for the popular game mode San Andreas
    - Locate the `dependencies` folder in the repository.
    - Move all files from the `dependencies` folder into your game folder.
 
-*Note: Ensure all necessary files from the dependencies folder are moved to your game folder for proper functionality. If you are using a different version of SAMP, make sure to download and use the appropriate version of SAMPFUNCS from [Blasthack](https://www.blast.hk).*
+*Note: Ensure all necessary files from the dependencies folder are moved to your game folder for proper functionality. If you are using a SAMP version other than 0.3.7 R1, make sure to download and use the appropriate version of SAMPFUNCS from [Blasthack](https://www.blast.hk).*
 
 ## Local server setup
 Before you begin, make sure you have Python installed on your system. If not, follow these steps to install Python:
