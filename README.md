@@ -24,17 +24,13 @@ SAMP Translator is an in-game modification for the popular game mode San Andreas
 - Turkish
 - Indonesian
 
-## Script requirements
+## Dependencies
 
-To use SAMP Translator, you need to have the following dependencies installed:
+1. **Move Dependencies to Game Folder:**
+   - Locate the `dependencies` folder in the repository.
+   - Move all files from the `dependencies` folder into your game folder.
 
-1. [sampfuncs](https://www.blast.hk/attachments/22939/): Place the `.asi` file into your game folder.
-2. [mimgui](https://www.blast.hk/redirect/aHR0cHM6Ly9naXRodWIuY29tL1RIRS1GWVAvbWltZ3VpL3JlbGVhc2VzL2Rvd25sb2FkL3YxLjcuMC9taW1ndWktdjEuNy4wLnppcA): Extract the contents of the folder from the archive into the `lib` folder of your game.
-3. [effil](https://blast.hk/attachments/19493/): Copy the files from the archive into the `lib` folder of your game.
-4. [requests](https://luarocks.org/manifests/fyp/lua-requests-cvs-1.src.rock): Extract the contents of the archive, navigate to `lua-requests\src\`, and copy the files to the `lib` folder of your game.
-5. [lfs](https://www.blast.hk/attachments/57137/): Place the `.dll` file into the `lib` folder of your game.
-
-*Note: The `lib` folder can be found in your game's `moonloader` directory.*
+*Note: Ensure all necessary files from the dependencies folder are moved to your game folder for proper functionality. If you are using a different version of SAMP, make sure to download and use the appropriate version of SAMPFUNCS from [Blasthack](https://www.blast.hk).*
 
 ## Local server setup
 Before you begin, make sure you have Python installed on your system. If not, follow these steps to install Python:
