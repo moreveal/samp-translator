@@ -24,7 +24,7 @@ SAMP Translator is an in-game modification for the popular game mode San Andreas
 - Turkish
 - Indonesian
 
-## Requirements
+## Script requirements
 
 To use SAMP Translator, you need to have the following dependencies installed:
 
@@ -35,6 +35,45 @@ To use SAMP Translator, you need to have the following dependencies installed:
 5. [lfs](https://www.blast.hk/attachments/57137/): Place the `.dll` file into the `lib` folder of your game.
 
 *Note: The `lib` folder can be found in your game's `moonloader` directory.*
+
+## Local server setup
+Before you begin, make sure you have Python installed on your system. If not, follow these steps to install Python:
+
+1. **Download Python:** 
+   - Visit the [official Python website](https://www.python.org/downloads/) and download the latest version compatible with your operating system.
+   - Follow the installation instructions provided on the website.
+
+Once Python is installed, proceed with setting up the local server:
+
+1. **Navigate to the Server Directory:**
+   - Open a terminal or command prompt.
+   - Change directory to the `server` folder where the server files are located. Use the `cd` command followed by the path to the `server` directory. For example:
+     ```
+     cd path/to/server
+     ```
+
+2. **Install Dependencies:**
+   - Inside the `server` directory, there is a file named `requirements.txt`. This file contains a list of dependencies required for the server to run.
+   - Install these dependencies using pip, the Python package manager. Run the following command:
+     ```
+     pip install -r requirements.txt
+     ```
+
+3. **Start the Server:**
+   - After installing the dependencies, you can start the server by running the `main.py` file.
+   - Execute the following command in the terminal:
+     ```
+     python main.py
+     ```
+
+4. **Verify Server Setup:**
+   - Once the server is running, you should see a message indicating that the server is running successfully and listening for incoming connections:
+   ```
+   ======== Running on http://127.0.0.1:9550 ========
+   (Press CTRL+C to quit)
+   ```
+
+If you see such a message - you can start using the script (console must remain open).
 
 ## Activation
 
