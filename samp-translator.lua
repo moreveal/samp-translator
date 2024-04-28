@@ -13,7 +13,6 @@ local inicfg = require 'inicfg'
 local ffi = require 'ffi'
 local lfs = require 'lfs'
 local wm = require 'windows.message'
-local vkeys = require 'vkeys'
 -- additionaly
 local imgui = require 'mimgui'
 local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
@@ -31,7 +30,6 @@ local langs_url = {
     "https://github.com/moreveal/samp-translator/raw/main/languages/Russian.lang",
     "https://github.com/moreveal/samp-translator/raw/main/languages/Ukranian.lang"
 }
-local script_server = "https://s218767.h1n.ru/translate.php" -- the address used to get the current API and redirect requests
 ------------
 
 if not doesDirectoryExist(main_dir.."languages") then createDirectory(main_dir.."languages") end
@@ -49,7 +47,6 @@ local defaultIni = {
     options = {
         scriptlang = "English", -- script language
         autoupdate = false, -- status of autoupdate
-        server = false, -- whether to transfer requests through the script server
         t_chat = true, -- chat translation
         t_dialogs = true, -- dialogs translation
         t_chatbubbles = true, -- chatbubbles translation
@@ -68,7 +65,6 @@ local cb_dialogs = new.bool(inifile.options.t_dialogs)
 local cb_chatbubbles = new.bool(inifile.options.t_chatbubbles)
 local cb_textlabels = new.bool(inifile.options.t_textlabels)
 local cb_autoupdate = new.bool(inifile.options.autoupdate)
-local cb_scriptserver = new.bool(inifile.options.server)
 
 local combo_scriptlangs_index = new.int(0)
 local combo_scriptlangs_text = {}
@@ -85,7 +81,7 @@ for file in lfs.dir(main_dir.."languages") do
 end
 local combo_scriptlangs = new['const char*'][#combo_scriptlangs_text](combo_scriptlangs_text)
 local combo_langs_tindex, combo_langs_sindex = new.int(0), new.int(0)
-for k,v in ipairs(langs_association) do
+for k, v in ipairs(langs_association) do
     if inifile.lang.source == v then
         combo_langs_sindex[0] = k-1
     elseif inifile.lang.target == v then
@@ -129,69 +125,63 @@ function main()
         ["sec-ch-ua-platform"] = "Windows",
         ["sec-ch-ua"] = "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"101\", \"Google Chrome\";v=\"101\"",
     }
-    asyncHttpRequest('POST', script_server, {data = "method=api", headers = headers}, function(response) api_url = response.text end)
-    local getapitime = os.clock()
-    while not api_url do
-        wait(0)
-        if os.clock() - getapitime >= 3 then 
-            sampAddChatMessage("[Translator]: Couldn't get an up-to-date Translator API link. Try again later.", 0xCCCCCC)
-            thisScript():unload()
-        end
-    end
+    math.randomseed(os.time())
+
+    local api_url = "http://127.0.0.1:9550" -- Local API
 
     lua_thread.create(function()
         while true do
             wait(0)
 
             if inifile.translate.enable_in then
-                for k,v in ipairs(textlabels) do
-                    if sampIs3dTextDefined(v.id) then
+                for index, textlabel in ipairs(textlabels) do
+                    if sampIs3dTextDefined(textlabel.id) then
                         local x, y, z = getCharCoordinates(PLAYER_PED)
-                        if v.pid ~= 65535 then
-                            local res, handle = sampGetCharHandleBySampPlayerId(v.pid)
-                            if res then v.position.x, v.position.y, v.position.z = getCharCoordinates(handle) end
-                        elseif v.vid ~= 65535 then
-                            local res, handle = sampGetCarHandleBySampVehicleId(v.vid)
-                            if res then v.position.x, v.position.y, v.position.z = getCarCoordinates(handle) end
+                        if textlabel.pid ~= 65535 then
+                            local res, handle = sampGetCharHandleBySampPlayerId(textlabel.pid)
+                            if res then textlabel.position.x, textlabel.position.y, textlabel.position.z = getCharCoordinates(handle) end
+                        elseif textlabel.vid ~= 65535 then
+                            local res, handle = sampGetCarHandleBySampVehicleId(textlabel.vid)
+                            if res then textlabel.position.x, textlabel.position.y, textlabel.position.z = getCarCoordinates(handle) end
                         end
-                        if getDistanceBetweenCoords3d(x, y, z, v.position.x, v.position.y, v.position.z) <= 15.0 then
+                        if getDistanceBetweenCoords3d(x, y, z, textlabel.position.x, textlabel.position.y, textlabel.position.z) <= 10.0 then
                             table.insert(threads, {
-                                style = 3, 
+                                style = 3,
                                 messages = {
-                                    {false, v.id},
-                                    {false, v.color},
-                                    {true, v.text}
+                                    {false, textlabel.id},
+                                    {false, textlabel.color},
+                                    {true, textlabel.text}
                                 }
                             })
-                            table.remove(textlabels, k)
+                            table.remove(textlabels, index)
                         end
                     else
-                        table.remove(textlabels, k)
+                        table.remove(textlabels, index)
                     end
                 end
 
-                for k,v in ipairs(chatbubbles) do
-                    if os.clock() - v.duration < 0 then
+                for index, chatbubble in ipairs(chatbubbles) do
+                    if os.clock() - chatbubble.duration < 0 then
                         local x, y, z = getCharCoordinates(PLAYER_PED)
-                        local r, handle = sampGetCharHandleBySampPlayerId(v.playerid)
+                        local r, handle = sampGetCharHandleBySampPlayerId(chatbubble.playerid)
                         if r then
                             local px, py, pz = getCharCoordinates(handle)
-                            if getDistanceBetweenCoords3d(x, y, z, px, py, pz) <= v.distance then
+                            if getDistanceBetweenCoords3d(x, y, z, px, py, pz) <= chatbubble.distance then
                                 table.insert(threads, {
                                     style = 4,
                                     messages = {
-                                        {false, v.playerid},
-                                        {false, v.color},
-                                        {false, v.distance},
-                                        {false, (v.duration - os.clock()) * 1000},
-                                        {true, v.message}
+                                        {false, chatbubble.playerid},
+                                        {false, chatbubble.color},
+                                        {false, chatbubble.distance},
+                                        {false, (chatbubble.duration - os.clock()) * 1000},
+                                        {true, chatbubble.message}
                                     }
                                 })
-                                table.remove(chatbubbles, k)
+                                table.remove(chatbubbles, index)
                             end
                         end
                     else
-                        table.remove(chatbubbles, k)
+                        table.remove(chatbubbles, index)
                     end
                 end
             end
@@ -201,28 +191,30 @@ function main()
         wait(0)
 
         if inifile.translate.enable_in or inifile.translate.enable_out and api_url then
-            for k,v in ipairs(threads) do
+            for thread_index, thread in ipairs(threads) do
                 local finish = false
-                for s,t in pairs(v.messages) do
+                for message_index, message_info in pairs(thread.messages) do
+                    local is_translatable, message, is_out_message = message_info[1], message_info[2], message_info[3]
+                    local need_translate = is_translatable and (message:len() > 0 and message:find("%S") and message:find("%D"))
+
                     except = {}
-                    if t[1] and t[2]:len() > 0 and t[2]:find("%S") and t[2]:find("%D") then -- if need to translate
+                    if need_translate then
                         -- fix translation of commands
-                        for word in t[2]:gmatch("[^%s]+") do
+                        for word in message:gmatch("[^%s]+") do
                             word = word:match("^(/%w+)")
                             if word then
                                 local cmd = word:match("/(%w+)")
                                 if cmd then
                                     local fixcmd = "/".."2x"..cmd.."2x"
-                                    t[2] = t[2]:gsub(word, fixcmd)
+                                    message = message:gsub(word, fixcmd)
                                     table.insert(except, {old = word, new = fixcmd})
                                 end
                             end
                         end
 
-                        math.randomseed(os.time())
-                        local tab_replace = "0x"..math.random(10,99) -- to escaping the tab is not the best solution, cause it can also be translated
-                        if t[2]:find("\t") then t[2] = t[2]:gsub("\t", tab_replace) end -- to save tabs
-                        local function split_by_lines(str, limit)
+                        local tab_replace = "__TAB__" -- to escaping the tab is not the best solution, cause it can also be translated
+                        if message:find("\t") then message = message:gsub("\t", tab_replace) end -- to save tabs
+                        local function split_by_parts(str, limit)
                             local lines = {}
                             local line = ""
                             for word in (str .. " "):gmatch("(.-) ") do
@@ -237,29 +229,35 @@ function main()
                             table.insert(lines, line:match("^%s*(.-)%s*$"))
                             return lines
                         end
-                        local result = split_by_lines(t[2], 650)
-                        for r,l in ipairs(result) do
-                            if result[r] then
-                                local source, target, url, data = t[3] and inifile.lang.target or inifile.lang.source, t[3] and inifile.lang.source or inifile.lang.target
-                                if inifile.options.server then url, data = script_server, "source="..source.."&target="..target.."&text="..u8(l)
-                                else url, data = string.format(api_url, source, target), "text="..url_encode(u8(l)).."&options=4" end
+                        local result = split_by_parts(message, 650)
+                        for index, source_text in ipairs(result) do
+                            if result[index] then
+                                local source, target = (is_out_message and inifile.lang.target or inifile.lang.source), (is_out_message and inifile.lang.source or inifile.lang.target)
+                                local url, data = api_url, "source="..source.."&target="..target.."&text="..u8(source_text)
+
                                 local temp_str = false
                                 asyncHttpRequest('POST', url, {data = data, headers = headers},
                                 function(response)
                                     local isjson, array = pcall(decodeJson, response.text)
                                     if isjson and response.status_code == 200 then
-                                        if array.text[1] then
-                                            local result_text = array.text[1]
+                                        if array.text then
+                                            local result_text = array.text
+
                                             -- fix tabs
                                             if result_text:find(tab_replace) then result_text = result_text:gsub(tab_replace, "\t") end
 
                                             -- fix translation of commands
                                             if result_text:find("%s/%s") then result_text = result_text:gsub("%s/%s", "") end
-                                            for _,v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
+                                            for _, v in ipairs(except) do result_text = result_text:gsub(v.new, v.old) end
                                             if result_text:find("2x.-2x") then result_text = result_text:gsub("2x", "") end
 
+                                            -- fix broken color tags
+                                            result_text = result_text:gsub("{%s*(%x%x%x%x%x%x)%s*}", "{%1}")
+                                            -- fix broken square brackets
+                                            result_text = result_text:gsub("%[%s*(.-)%s*]", '[%1]')
+
                                             temp_str = u8:decode(result_text)
-                                            if s == #v.messages then finish = true end
+                                            if message_index == #thread.messages then finish = true end
                                         end
                                     else -- if there is no connection
                                         -- disable the translation, cancel all threads
@@ -267,7 +265,7 @@ function main()
                                         inifile.translate.enable_in = false
                                         cb_enable_in[0] = false
                                         cb_enable_out[0] = false
-                                        v.messages = {}
+                                        thread.messages = {}
                                         sampAddChatMessage("[Translator]: "..phrases.NO_CONNECTION, 0xCCCCCC)
                                     end
                                 end,
@@ -283,48 +281,77 @@ function main()
                                 end)
                                 while not temp_str and not reqerror do wait(0) end
                                 if not reqerror then 
-                                    result[r] = temp_str
+                                    result[index] = temp_str
                                 else
-                                    if t[2]:find(tab_replace) then t[2] = t[2]:gsub(tab_replace, "\t") end -- return tabs
-                                    for _,v in ipairs(except) do t[2] = t[2]:gsub(v.new, v.old) end -- return commands
-                                    result = {t[2]}
+                                    if message:find(tab_replace) then message = message:gsub(tab_replace, "\t") end -- return tabs
+                                    for _, v in ipairs(except) do message = message:gsub(v.new, v.old) end -- return commands
+                                    result = {message}
                                 end
                             end
                         end
-                        t[2] = table.concat(result, " ")
-                        if s == #v.messages then finish = true end
+                        message_info[2] = table.concat(result, " ")
+                        if message_index == #thread.messages then finish = true end
                     else
-                        if s == #v.messages then finish = true end
+                        if message_index == #thread.messages then finish = true end
                     end
                     if reqerror then reqerror = false break end
                 end
                 while not finish do wait(0) end
+
+                local messages = {}
+                for _, v in ipairs(thread.messages) do
+                    table.insert(messages, v[2])
+                end
+
                 local bs = raknetNewBitStream()
-                if v.style == 5 or v.style == 6 then nop_sendchat = true end
-                if v.style == 1 then -- onServerMessage
-                    sampAddChatMessage(v.messages[2][2], bit.rshift(v.messages[1][2], 8)) -- text, color
-                elseif v.style == 2 then -- onShowDialog
-                    sampShowDialog(v.messages[1][2], v.messages[3][2], v.messages[6][2], v.messages[4][2], v.messages[5][2], v.messages[2][2]) -- dialogid, title, text, b1, b2, style
+                if thread.style == 5 or thread.style == 6 then nop_sendchat = true end
+                if thread.style == 1 then -- onServerMessage
+                    sampAddChatMessage(messages[2], bit.rshift(messages[1], 8)) -- text, color
+                elseif thread.style == 2 then -- onShowDialog
+                    raknetBitStreamWriteInt16(bs, messages[1]) -- dialogid
+                    raknetBitStreamWriteInt8(bs, messages[2]) -- style
+                    raknetBitStreamWriteInt8(bs, messages[3]:len()) -- title length
+                    raknetBitStreamWriteString(bs, messages[3]) -- title
+                    raknetBitStreamWriteInt8(bs, messages[4]:len()) -- button1 length
+                    raknetBitStreamWriteString(bs, messages[4]) -- button1
+                    raknetBitStreamWriteInt8(bs, messages[5]:len()) -- button2 length
+                    raknetBitStreamWriteString(bs, messages[5]) -- button2
+                    raknetBitStreamEncodeString(bs, messages[6]) -- text
+                    raknetEmulRpcReceiveBitStream(61, bs)
                     sampSetDialogClientside(false)
-                elseif v.style == 3 then -- onCreate3DText
-                    sampSet3dTextString(v.messages[1][2], "{"..bit.tohex(bit.rshift(v.messages[2][2], 8), 6).."}"..v.messages[3][2]) -- id, {color}..text
-                elseif v.style == 4 then -- onPlayerChatBubble
-                    raknetBitStreamWriteInt16(bs, v.messages[1][2]) -- playerid
-                    raknetBitStreamWriteInt32(bs, v.messages[2][2]) -- color
-                    raknetBitStreamWriteFloat(bs, v.messages[3][2]) -- distance
-                    raknetBitStreamWriteInt32(bs, v.messages[4][2]) -- duration
-                    raknetBitStreamWriteInt8(bs, v.messages[5][2]:len()) -- text length
-                    raknetBitStreamWriteString(bs, v.messages[5][2]) -- text
+                elseif thread.style == 3 then -- onCreate3DText
+                    local textlabel_id, color = messages[1], messages[2]
+                    local _, _, x, y, z, distance, walls, playerid, vehicleid = sampGet3dTextInfoById(textlabel_id)
+
+                    -- Create new label
+                    raknetBitStreamWriteInt16(bs, textlabel_id)
+                    raknetBitStreamWriteInt32(bs, color)
+                    raknetBitStreamWriteFloat(bs, x)
+                    raknetBitStreamWriteFloat(bs, y)
+                    raknetBitStreamWriteFloat(bs, z)
+                    raknetBitStreamWriteFloat(bs, distance)
+                    raknetBitStreamWriteInt8(bs, walls)
+                    raknetBitStreamWriteInt16(bs, playerid)
+                    raknetBitStreamWriteInt16(bs, vehicleid)
+                    raknetBitStreamEncodeString(bs, messages[3])
+                    raknetEmulRpcReceiveBitStream(36, bs)
+                elseif thread.style == 4 then -- onPlayerChatBubble
+                    raknetBitStreamWriteInt16(bs, messages[1]) -- playerid
+                    raknetBitStreamWriteInt32(bs, messages[2]) -- color
+                    raknetBitStreamWriteFloat(bs, messages[3]) -- distance
+                    raknetBitStreamWriteInt32(bs, messages[4]) -- duration
+                    raknetBitStreamWriteInt8(bs, messages[5]:len()) -- text length
+                    raknetBitStreamWriteString(bs, messages[5]) -- text
                     raknetEmulRpcReceiveBitStream(59, bs)
-                elseif v.style == 5 then -- onSendChat
-                    sampSendChat(v.messages[1][2])
-                elseif v.style == 6 then -- onSendCommand
-                    sampSendChat(v.messages[1][2].." "..v.messages[2][2])
-                elseif v.style == 7 then -- onSendDialogResponse
-                    sampSendDialogResponse(v.messages[1][2], v.messages[2][2], v.messages[3][2], v.messages[4][2]) -- dialogid, button, list, input
+                elseif thread.style == 5 then -- onSendChat
+                    sampSendChat(messages[1])
+                elseif thread.style == 6 then -- onSendCommand
+                    sampSendChat(messages[1].." "..messages[2])
+                elseif thread.style == 7 then -- onSendDialogResponse
+                    sampSendDialogResponse(messages[1], messages[2], messages[3], messages[4]) -- dialogid, button, list, input
                 end
                 raknetDeleteBitStream(bs)
-                table.remove(threads, k)
+                table.remove(threads, thread_index)
             end
         end
 
@@ -373,7 +400,7 @@ function onReceiveRpc(id, bs)
             local color = raknetBitStreamReadInt32(bs)
             local position = {x = raknetBitStreamReadFloat(bs), y = raknetBitStreamReadFloat(bs), z = raknetBitStreamReadFloat(bs)}
             local distance = raknetBitStreamReadFloat(bs)
-            local testLOS = raknetBitStreamReadInt8(bs) ~= 0
+            local walls = raknetBitStreamReadInt8(bs) ~= 0
             local pid = raknetBitStreamReadInt16(bs)
             local vid = raknetBitStreamReadInt16(bs)
             local text = raknetBitStreamDecodeString(bs, 4096)
@@ -573,18 +600,10 @@ imguiFrame[1] = imgui.OnFrame(
         imgui.Separator()
         imgui.PushItemWidth(235)
         if imgui.Combo(u8(phrases.CB_SOURCE), combo_langs_sindex, combo_langs, #combo_langs_text) then
-            if combo_langs_sindex[0] == combo_langs_tindex[0] then
-                inifile.lang.target = inifile.lang.source
-                combo_langs_tindex[0] = getComboIndexByLang(inifile.lang.source)
-            end
             inifile.lang.source = langs_association[combo_langs_sindex[0] + 1]
             inicfg.save(inifile, cpath)
         end
         if imgui.Combo(u8(phrases.CB_TARGET), combo_langs_tindex, combo_langs, #combo_langs_text) then
-            if combo_langs_tindex[0] == combo_langs_sindex[0] then
-                inifile.lang.source = inifile.lang.target
-                combo_langs_sindex[0] = getComboIndexByLang(inifile.lang.target)
-            end
             inifile.lang.target = langs_association[combo_langs_tindex[0] + 1]
             inicfg.save(inifile, cpath)
         end
@@ -608,25 +627,9 @@ imguiFrame[1] = imgui.OnFrame(
             inicfg.save(inifile, cpath)
         end
         imgui.PopItemWidth()
-        imgui.Separator()
-        if imgui.Checkbox(u8(phrases.S_STATUS), cb_scriptserver) then
-            inifile.options.server = not inifile.options.server
-            inicfg.save(inifile, cpath)
-        end
-        imguiHint(phrases.H_SINFO)
         imgui.End()
     end
 )
-
-function getComboIndexByLang(language)
-    for k,v in ipairs(langs_association) do
-        if language == v then
-            return k - 1
-        end
-    end
-    return 0
-end
-
 addEventHandler('onWindowMessage', function(msg, wparam, lparam)
     if msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN then
         if wparam == 27 and not sampIsChatInputActive() and not sampIsDialogActive() then -- escape button
