@@ -48,21 +48,14 @@ Once Python is installed, proceed with setting up the local server:
      cd path/to/server
      ```
 
-2. **Install Dependencies:**
-   - Inside the `server` directory, there is a file named `requirements.txt`. This file contains a list of dependencies required for the server to run.
-   - Install these dependencies using pip, the Python package manager. Run the following command:
-     ```
-     pip install -r requirements.txt
-     ```
-
-3. **Start the Server:**
+2. **Start the Server:**
    - After installing the dependencies, you can start the server by running the `main.py` file.
    - Execute the following command in the terminal:
      ```
      python main.py
      ```
 
-4. **Verify Server Setup:**
+3. **Verify Server Setup:**
    - Once the server is running, you should see a message indicating that the server is running successfully and listening for incoming connections:
    ```
    ======== Running on http://127.0.0.1:9550 ========
