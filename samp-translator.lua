@@ -321,20 +321,22 @@ function main()
                     sampSetDialogClientside(false)
                 elseif thread.style == 3 then -- onCreate3DText
                     local textlabel_id, color = messages[1], messages[2]
-                    local _, _, x, y, z, distance, walls, playerid, vehicleid = sampGet3dTextInfoById(textlabel_id)
+                    if sampIs3dTextDefined(textlabel_id) then
+                        local _, _, x, y, z, distance, walls, playerid, vehicleid = sampGet3dTextInfoById(textlabel_id)
 
-                    -- Create new label
-                    raknetBitStreamWriteInt16(bs, textlabel_id)
-                    raknetBitStreamWriteInt32(bs, color)
-                    raknetBitStreamWriteFloat(bs, x)
-                    raknetBitStreamWriteFloat(bs, y)
-                    raknetBitStreamWriteFloat(bs, z)
-                    raknetBitStreamWriteFloat(bs, distance)
-                    raknetBitStreamWriteInt8(bs, walls)
-                    raknetBitStreamWriteInt16(bs, playerid)
-                    raknetBitStreamWriteInt16(bs, vehicleid)
-                    raknetBitStreamEncodeString(bs, messages[3])
-                    raknetEmulRpcReceiveBitStream(36, bs)
+                        -- Create new label
+                        raknetBitStreamWriteInt16(bs, textlabel_id)
+                        raknetBitStreamWriteInt32(bs, color)
+                        raknetBitStreamWriteFloat(bs, x)
+                        raknetBitStreamWriteFloat(bs, y)
+                        raknetBitStreamWriteFloat(bs, z)
+                        raknetBitStreamWriteFloat(bs, distance)
+                        raknetBitStreamWriteInt8(bs, walls)
+                        raknetBitStreamWriteInt16(bs, playerid)
+                        raknetBitStreamWriteInt16(bs, vehicleid)
+                        raknetBitStreamEncodeString(bs, messages[3])
+                        raknetEmulRpcReceiveBitStream(36, bs)
+                    end
                 elseif thread.style == 4 then -- onPlayerChatBubble
                     raknetBitStreamWriteInt16(bs, messages[1]) -- playerid
                     raknetBitStreamWriteInt32(bs, messages[2]) -- color
