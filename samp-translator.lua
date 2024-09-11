@@ -19,7 +19,7 @@ local new, str, sizeof = imgui.new, ffi.string, ffi.sizeof
 -- variables
 local threads, textlabels, chatbubbles = {}, {}, {}
 local phrases = {}
-local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt"}
+local langs_association = {"en", "ru", "uk", "be", "it", "bg", "es", "kk", "de", "pl", "sr", "fr", "ro", "pt", "ko"}
 local langs_version = 2
 local main_dir = getWorkingDirectory().."\\config\\samp-translator\\" -- directory of files for correct operation of the script
 local sizeX, sizeY = getScreenResolution()
